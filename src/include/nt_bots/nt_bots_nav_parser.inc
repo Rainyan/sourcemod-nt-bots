@@ -27,6 +27,8 @@ bool ParseNavOfMap(const char[] mapName)
 // the provided navPath and mapName are valid.
 bool ParseNavFile(File navFile, const char[] navPath, const char[] mapName)
 {
+    // CNavMesh::Save
+    
     bool success = false;
 // Magic header. Defined in nav.h.
 #define NAV_MAGIC_NUMBER 0xFEEDFACE
@@ -39,10 +41,8 @@ bool ParseNavFile(File navFile, const char[] navPath, const char[] mapName)
 #define META_NAV_IDX_MAGIC 0
 #define META_NAV_IDX_VERSION 1
 #define META_NAV_IDX_BSPSIZE 2
-// Each header value is 4 bytes.
-#define BYTES_PER_HEADER_VALUE 4
     int metaInfo[3];
-    if (ReadFile(navFile, metaInfo, sizeof(metaInfo), BYTES_PER_HEADER_VALUE) != sizeof(metaInfo)) {
+    if (ReadFile(navFile, metaInfo, sizeof(metaInfo), 4) != sizeof(metaInfo)) {
         PrintToServer("Failed to read meta info from file: %s", navPath);
     } else if (metaInfo[META_NAV_IDX_MAGIC] != NAV_MAGIC_NUMBER) {
         PrintToServer("Magic number mismatch: %s (%x vs %x)",
@@ -72,19 +72,134 @@ bool ParseNavFile(File navFile, const char[] navPath, const char[] mapName)
     if (!success) {
         return false;
     }
-        
-    int numPlaces = 0;
-    if (ReadFileCell(navFile, numPlaces, BYTES_PER_HEADER_VALUE) != 1) {
-        PrintToServer("Failed to parse nav num places");
+    
+    // PlaceDirectory::Save
+    int numPlaces;
+    if (!navFile.ReadUint16(numPlaces)) {
+        PrintToServer("Failed to read numPlaces");
         return false;
     } else if (numPlaces < 1) {
-        PrintToServer("No places in nav");
+        PrintToServer("No places in nav; got: %i", numPlaces);
+        return false;
+    } else if (numPlaces > 1000) { // TODO: set upper bound properly
+        PrintToServer("Unreasonable numPlaces (%i), \
+probably a parsing error.", numPlaces);
         return false;
     }
     
     // Iterate places
+    for (int placeIt = 0; placeIt < numPlaces; ++placeIt) {
+        int placeNameLen;
+        if (!navFile.ReadUint16(placeNameLen)) {
+            PrintToServer("Failed to read placeNameLen");
+            return false;
+        }
+        decl String:placeName[placeNameLen];
+        if (ReadFileString(navFile, placeName,
+            placeNameLen, placeNameLen) != placeNameLen)
+        {
+            PrintToServer("Failed to read placeName");
+            return false;
+        }
+        placeName[placeNameLen] = '\0';
+        PrintToServer("Place name: %s", placeName);
+        
+        // We don't do m_hasUnnamedAreas (version 12+ feature).
+        
+        int navAreaCount;
+        if (ReadFileCell(navFile, navAreaCount, 4) != 1) {
+            PrintToServer("Failed to read navAreaCount");
+            return false;
+        }
+        
+        for (int navAreaIt = 0; navAreaIt < navAreaCount; ++navAreaIt) {
+            int id;
+            if (ReadFileCell(navFile, id, 4) != 1) {
+                PrintToServer("Failed to read id");
+                return false;
+            }
+            PrintToServer("ID: %i", id);
+            
+            int attributeFlags;
+            if (ReadFileCell(navFile, attributeFlags, 2) != 1) {
+                PrintToServer("Failed to read attributeFlags");
+                return false;
+            } 
+            PrintToServer("attributeFlags: %i", attributeFlags);
+            
+            // Extent of area
+            float minsmaxs[6];
+            if (ReadFileFloat(navFile, minsmaxs,
+                sizeof(minsmaxs)) != sizeof(minsmaxs))
+            {
+                PrintToServer("Failed to read minsmaxs");
+                return false;
+            }
+            PrintToServer("mins: %f %f %f\nmaxs: %f %f %f",
+                minsmaxs[0], minsmaxs[1], minsmaxs[2],
+                minsmaxs[3], minsmaxs[4], minsmaxs[5]);
+            
+            // Heights of implicit corners
+#define Z_HEIGHT_NE 0
+#define Z_HEIGHT_SW 1
+            float zHeights[2];
+            if (ReadFileFloat(navFile, zHeights,
+                sizeof(zHeights)) != sizeof(zHeights))
+            {
+                PrintToServer("Failed to read zHeights");
+                return false;
+            }
+            PrintToServer("zHeights_NE: %f\nzHeights_SW: %f",
+                zHeights[Z_HEIGHT_NE], zHeights[Z_HEIGHT_SW]);
+            
+            // Connections to adjacent areas
+#define NORTH           0
+#define EAST            1
+#define SOUTH           2
+#define WEST            3
+#define NUM_DIRECTIONS  4
+            for (int dir = 0; dir < NUM_DIRECTIONS; ++dir) {
+                int numConnections;
+                if (ReadFileCell(navFile, numConnections, 4) != 1) {
+                    PrintToServer("Failed to read numConnections");
+                    return false;
+                } else if (numConnections > 100) {
+                    PrintToServer("Unreasonable numConnections (%i), \
+    probably a parsing error.", numConnections);
+                    return false;
+                }
+                
+                // TODO
+                
+                PrintToServer("Num connections: %i", numConnections);
+                //for (int conn = 0; conn < numConnections; ++conn) {
+                //    PrintToServer("Connection %i", conn);
+                //}
+            }
+        }
+        
+        return false;
+    }
     
-    return success;
+    return true;
+}
+
+// Reads binary data from a file, and interprets it as contiguous float array.
+// Returns number of elements read, or -1 on error.
+int ReadFileFloat(File file, float[] items, int num_items)
+{
+#define SIZEOF_FLOAT_BYTES 4
+#define NUM_BYTES num_items * SIZEOF_FLOAT_BYTES
+    decl String:buff[NUM_BYTES + 1];
+    buff[NUM_BYTES] = '\0';
+    if (ReadFileString(file, buff, NUM_BYTES + 1, NUM_BYTES) != NUM_BYTES) {
+        return -1;
+    }
+    int i;
+    for (i = 0; i < num_items; ++i) {
+        items[i] = view_as<float>(buff[i * SIZEOF_FLOAT_BYTES]);
+    }
+    return i;
 }
 
 #endif // _NT_BOTS_NAV_PARSER_INC_

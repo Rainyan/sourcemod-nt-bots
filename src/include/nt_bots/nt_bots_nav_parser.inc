@@ -1,7 +1,7 @@
 #if !defined(_NT_BOTS_NAV_PARSER_INC_)
 #define _NT_BOTS_NAV_PARSER_INC_
 
-bool ParseNav(const char[] mapName)
+bool ParseNavOfMap(const char[] mapName)
 {
     decl String:navPath[PLATFORM_MAX_PATH];
     if (Format(navPath, sizeof(navPath), "maps/%s.nav", mapName) < 1) {
@@ -17,11 +17,25 @@ bool ParseNav(const char[] mapName)
         return false;
     }
     
+    bool success = ParseNavFile(navFile, navPath, mapName);
+    delete navFile;
+    return success;
+}
+
+// Parse based on valid file handle.
+// Caller is responsible for the File memory and for ensuring
+// the provided navPath and mapName are valid.
+bool ParseNavFile(File navFile, const char[] navPath, const char[] mapName)
+{
     bool success = false;
-    
-#define NAV_MAGIC_NUMBER 0xFEEDFACE // Magic header. SDK @ nav.h
-#define NAV_NEO_VERSION 9           // This is the version NT engine uses
+// Magic header. Defined in nav.h.
+#define NAV_MAGIC_NUMBER 0xFEEDFACE
+// This is the version NT engine uses.
+// Versions are documented in CNavMesh::Save.
+#define NAV_NEO_VERSION 9
 // Indices for grabbing the nav header.
+// Note that we're skipping sub-version header,
+// because it was implemented in major version 10 (and we're on 9).
 #define META_NAV_IDX_MAGIC 0
 #define META_NAV_IDX_VERSION 1
 #define META_NAV_IDX_BSPSIZE 2
@@ -54,14 +68,22 @@ bool ParseNav(const char[] mapName)
         }
     }
     
-    // We've got a valid nav file. Ready to parse.
-    if (success) {
-        // TODO: Parse
-        // Could return reference to node graph etc.
-        int offset = META_NAV_IDX_BSPSIZE * BYTES_PER_HEADER_VALUE;
+    // Bail out early if we have an invalid nav file.
+    if (!success) {
+        return false;
+    }
+        
+    int numPlaces = 0;
+    if (ReadFileCell(navFile, numPlaces, BYTES_PER_HEADER_VALUE) != 1) {
+        PrintToServer("Failed to parse nav num places");
+        return false;
+    } else if (numPlaces < 1) {
+        PrintToServer("No places in nav");
+        return false;
     }
     
-    delete navFile;
+    // Iterate places
+    
     return success;
 }
 

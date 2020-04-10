@@ -22,7 +22,7 @@ public void OnPluginStart()
     decl String:mapName[PLATFORM_MAX_PATH];
     if (GetCurrentMap(mapName, sizeof(mapName)) < 1) {
         SetFailState("Failed to get map name");
-    } else if (!ParseNav(mapName)) {
+    } else if (!ParseNavOfMap(mapName)) {
         SetFailState("Failed to parse nav for %s", mapName);
     }
 }

@@ -61,7 +61,7 @@ bool ParseNavFile(File navFile, const char[] navPath, const char[] mapName)
                 bspPath, metaInfo[META_NAV_IDX_BSPSIZE], FileSize(bspPath));
         } else {
             success = true;
-            PrintToServer("All OK.\nMagic: %x\nVersion: %i\nSize: %i",
+            PrintToServer("Magic: %x\nNav version: %i\nBSP size: %i\nHeader OK.",
                 metaInfo[META_NAV_IDX_MAGIC],
                 metaInfo[META_NAV_IDX_VERSION],
                 metaInfo[META_NAV_IDX_BSPSIZE]);
@@ -72,19 +72,22 @@ bool ParseNavFile(File navFile, const char[] navPath, const char[] mapName)
     if (!success) {
         return false;
     }
-    
+        
     // PlaceDirectory::Save
     int numPlaces;
     if (!navFile.ReadUint16(numPlaces)) {
         PrintToServer("Failed to read numPlaces");
         return false;
-    } else if (numPlaces < 1) {
-        PrintToServer("No places in nav; got: %i", numPlaces);
+    } else if (numPlaces < 0) {
+        PrintToServer("Invalid places in nav; got: %u (hex %x)",
+            numPlaces, numPlaces);
         return false;
     } else if (numPlaces > 1000) { // TODO: set upper bound properly
-        PrintToServer("Unreasonable numPlaces (%i), \
-probably a parsing error.", numPlaces);
+        PrintToServer("Unreasonable numPlaces: %u (hex %x), \
+probably a parsing error.", numPlaces, numPlaces);
         return false;
+    } else {
+        PrintToServer("Num places: %u", numPlaces);
     }
     
     // Iterate places
@@ -181,7 +184,44 @@ probably a parsing error.", numPlaces);
         return false;
     }
     
-    return true;
+    int navAreaCount;
+    if (ReadFileCell(navFile, navAreaCount, 4) != 1) {
+        PrintToServer("Failed to read navAreaCount");
+        return false;
+    }
+    for (int navAreaIt = 0; navAreaIt < navAreaCount; ++navAreaIt) {
+        // CNavArea::Save
+        int navAreaId;
+        if (ReadFileCell(navFile, navAreaId, 4) != 1) {
+            PrintToServer("Failed to read navAreaId");
+            return false;
+        }
+        PrintToServer("Nav area ID: %i", navAreaId);
+        
+        int attributeFlags;
+        if (ReadFileCell(navFile, attributeFlags, 2) != 1) {
+            PrintToServer("Failed to read attributeFlags");
+            return false;
+        }
+        
+        // Extent of area
+        float minsmaxs[6];
+        if (ReadFileFloat(navFile, minsmaxs,
+            sizeof(minsmaxs)) != sizeof(minsmaxs))
+        {
+            PrintToServer("Failed to read minsmaxs");
+            return false;
+        }
+        PrintToServer("mins: %f %f %f\nmaxs: %f %f %f",
+            minsmaxs[0], minsmaxs[1], minsmaxs[2],
+            minsmaxs[3], minsmaxs[4], minsmaxs[5]);
+        
+        break; // !!
+    }
+    
+    PrintToServer("Reached end");
+    
+    return false;
 }
 
 // Reads binary data from a file, and interprets it as contiguous float array.

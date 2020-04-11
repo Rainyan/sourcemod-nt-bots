@@ -1,3 +1,9 @@
+# Compile helper scripts
 *.cmd
 *.sh
+
+# Binary output
 *.smx
+
+# Emacs style backups
+*~

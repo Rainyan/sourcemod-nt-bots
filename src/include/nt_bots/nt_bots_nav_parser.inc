@@ -161,6 +161,10 @@ probably a parsing error.", numPlaces, numPlaces);
 #define SOUTH           2
 #define WEST            3
 #define NUM_DIRECTIONS  4
+            new const String:dirNames[NUM_DIRECTIONS][] = {
+                "north", "east", "south", "west"
+            };
+
             for (int dir = 0; dir < NUM_DIRECTIONS; ++dir) {
                 int numConnections;
                 if (ReadFileCell(navFile, numConnections, 4) != 1) {
@@ -172,12 +176,19 @@ probably a parsing error.", numPlaces, numPlaces);
                     return false;
                 }
                 
-                // TODO
-                
                 PrintToServer("Num connections: %i", numConnections);
-                //for (int conn = 0; conn < numConnections; ++conn) {
-                //    PrintToServer("Connection %i", conn);
-                //}
+                int[] connections = new int[numConnections];
+                for (int connIt = 0; connIt < numConnections; ++connIt) {
+                    PrintToServer("Iterating connection %i", connIt);
+                    if (ReadFileCell(navFile, connections[connIt], 4) != 1) {
+                        PrintToServer("Failed to read connection id");
+                        return false;
+                    }
+                    PrintToServer("Area %i has a %sern connection to id: %i",
+                        navAreaIt,
+                        dirNames[dir],
+                        connections[connIt]);
+                }
             }
         }
         

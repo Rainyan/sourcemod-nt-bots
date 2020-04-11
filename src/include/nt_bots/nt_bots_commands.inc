@@ -11,7 +11,7 @@ public Action Cmd_OrderPos(int client, int argc)
         decl String:arg[4];
         for (int coord = 0; coord < 3; ++coord) {
             if (GetCmdArg(1 + coord, arg, sizeof(arg)) < 1) {
-                ReplyToCommand(client, "Unknown position");
+                ReplyToCommand(client, "%s Unknown position", BOTS_MSG_PREFIX);
                 return Plugin_Handled;
             } else {
                 xyz[coord] = StringToFloat(arg);
@@ -20,10 +20,12 @@ public Action Cmd_OrderPos(int client, int argc)
         s_targetPos = xyz;
     } else {
         if (client == 0) {
-            ReplyToCommand(client, "Need to provide X Y Z coordinates if invoking as server.");
+            ReplyToCommand(client, "%s Need to provide X Y Z coordinates if \
+invoking as server.", BOTS_MSG_PREFIX);
             return Plugin_Handled;
         } else if (argc != 0) {
-                ReplyToCommand(client, "Either provide X Y Z coords, or none to raycast from position.");
+                ReplyToCommand(client, "%s Either provide X Y Z coords, or \
+none to raycast from position.", BOTS_MSG_PREFIX);
                 return Plugin_Handled;
         } else {
             float eyePos[3], eyeAng[3];
@@ -35,7 +37,8 @@ public Action Cmd_OrderPos(int client, int argc)
             if (TR_DidHit(ray) /*&& !TR_AllSolid(ray)*/) {
                 TR_GetEndPosition(xyz, ray);
             } else {
-                ReplyToCommand(client, "%s Indeterminate trace", BOTS_MSG_PREFIX);
+                ReplyToCommand(client, "%s Indeterminate trace",
+                    BOTS_MSG_PREFIX);
                 delete ray;
                 return Plugin_Handled;
             }
@@ -56,14 +59,15 @@ public Action Cmd_SetPos(int client, int argc)
     float xyz[3];
     
     if (argc != 3) {
-        ReplyToCommand(client, "Need to provide X Y Z coords");
+        ReplyToCommand(client, "%s Need to provide X Y Z coords",
+            BOTS_MSG_PREFIX);
         return Plugin_Handled;
     }
     
     decl String:arg[4];
     for (int coord = 0; coord < 3; ++coord) {
         if (GetCmdArg(1 + coord, arg, sizeof(arg)) < 1) {
-            ReplyToCommand(client, "Unknown position");
+            ReplyToCommand(client, "%s Unknown position", BOTS_MSG_PREFIX);
             return Plugin_Handled;
         } else {
             xyz[coord] = StringToFloat(arg);

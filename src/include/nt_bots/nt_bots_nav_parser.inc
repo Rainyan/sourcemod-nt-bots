@@ -184,7 +184,7 @@ probably a parsing error.", numPlaces, numPlaces);
                         PrintToServer("Failed to read connection id");
                         return false;
                     }
-                    PrintToServer("Area %i has a %sern connection to id: %i",
+                    PrintToServer("Area %i has a %sern connection to area %i",
                         navAreaIt,
                         dirNames[dir],
                         connections[connIt]);

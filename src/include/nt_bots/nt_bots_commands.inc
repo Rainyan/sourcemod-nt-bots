@@ -1,8 +1,6 @@
 #if !defined(_NT_BOTS_COMMANDS_INC_)
 #define _NT_BOTS_COMMANDS_INC_
 
-#include "include/nt_bots/nt_bots_shared.inc"
-
 #define BOTS_MSG_PREFIX "[BOT]"
 
 public Action Cmd_OrderPos(int client, int argc)

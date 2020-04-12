@@ -192,8 +192,6 @@ probably a parsing error.", numPlaces, numPlaces);
                 }
             }
         }
-        
-        return false;
     }
     
     int navAreaCount;
@@ -201,20 +199,21 @@ probably a parsing error.", numPlaces, numPlaces);
         PrintToServer("Failed to read navAreaCount");
         return false;
     }
+    
     for (int navAreaIt = 0; navAreaIt < navAreaCount; ++navAreaIt) {
-        // CNavArea::Save
-        int navAreaId;
-        if (ReadFileCell(navFile, navAreaId, 4) != 1) {
-            PrintToServer("Failed to read navAreaId");
+        int id;
+        if (ReadFileCell(navFile, id, 4) != 1) {
+            PrintToServer("Failed to read id");
             return false;
         }
-        PrintToServer("Nav area ID: %i", navAreaId);
+        PrintToServer("ID: %i", id);
         
         int attributeFlags;
         if (ReadFileCell(navFile, attributeFlags, 2) != 1) {
             PrintToServer("Failed to read attributeFlags");
             return false;
-        }
+        } 
+        PrintToServer("attributeFlags: %i", attributeFlags);
         
         // Extent of area
         float minsmaxs[6];
@@ -228,7 +227,54 @@ probably a parsing error.", numPlaces, numPlaces);
             minsmaxs[0], minsmaxs[1], minsmaxs[2],
             minsmaxs[3], minsmaxs[4], minsmaxs[5]);
         
-        break; // !!
+        // Heights of implicit corners
+#define Z_HEIGHT_NE 0
+#define Z_HEIGHT_SW 1
+        float zHeights[2];
+        if (ReadFileFloat(navFile, zHeights,
+            sizeof(zHeights)) != sizeof(zHeights))
+        {
+            PrintToServer("Failed to read zHeights");
+            return false;
+        }
+        PrintToServer("zHeights_NE: %f\nzHeights_SW: %f",
+            zHeights[Z_HEIGHT_NE], zHeights[Z_HEIGHT_SW]);
+        
+        // Connections to adjacent areas
+#define NORTH           0
+#define EAST            1
+#define SOUTH           2
+#define WEST            3
+#define NUM_DIRECTIONS  4
+        new const String:dirNames[NUM_DIRECTIONS][] = {
+            "north", "east", "south", "west"
+        };
+
+        for (int dir = 0; dir < NUM_DIRECTIONS; ++dir) {
+            int numConnections;
+            if (ReadFileCell(navFile, numConnections, 4) != 1) {
+                PrintToServer("Failed to read numConnections");
+                return false;
+            } else if (numConnections > 100) {
+                PrintToServer("Unreasonable numConnections (%i), \
+probably a parsing error.", numConnections);
+                return false;
+            }
+            
+            PrintToServer("Num connections: %i", numConnections);
+            int[] connections = new int[numConnections];
+            for (int connIt = 0; connIt < numConnections; ++connIt) {
+                PrintToServer("Iterating connection %i", connIt);
+                if (ReadFileCell(navFile, connections[connIt], 4) != 1) {
+                    PrintToServer("Failed to read connection id");
+                    return false;
+                }
+                PrintToServer("Area %i has a %sern connection to area %i",
+                    navAreaIt,
+                    dirNames[dir],
+                    connections[connIt]);
+            }
+        }
     }
     
     PrintToServer("Reached end");

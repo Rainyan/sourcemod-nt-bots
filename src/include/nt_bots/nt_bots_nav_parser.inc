@@ -118,10 +118,10 @@ probably a parsing error.", numPlaces, numPlaces);
         for (int navAreaIt = 0; navAreaIt < navAreaCount; ++navAreaIt) {
             int id;
             if (ReadFileCell(navFile, id, 4) != 1) {
-                PrintToServer("Failed to read id");
+                PrintToServer("Failed to read nav area id");
                 return false;
             }
-            PrintToServer("ID: %i", id);
+            PrintToServer("Nav area id: %i", id);
             
             int attributeFlags;
             if (ReadFileCell(navFile, attributeFlags, 2) != 1) {
@@ -203,10 +203,10 @@ probably a parsing error.", numPlaces, numPlaces);
     for (int navAreaIt = 0; navAreaIt < navAreaCount; ++navAreaIt) {
         int id;
         if (ReadFileCell(navFile, id, 4) != 1) {
-            PrintToServer("Failed to read id");
+            PrintToServer("Failed to read nav area id");
             return false;
         }
-        PrintToServer("ID: %i", id);
+        PrintToServer("Nav area id: %i", id);
         
         int attributeFlags;
         if (ReadFileCell(navFile, attributeFlags, 2) != 1) {
@@ -277,9 +277,69 @@ probably a parsing error.", numConnections);
         }
     }
     
+    int ladderCount;
+    if (ReadFileCell(navFile, ladderCount, 4) != 1) {
+        PrintToServer("Failed to read ladderCount");
+        return false;
+    }
+    
+    for (int ladderIt = 0; ladderIt < ladderCount; ++ladderIt) {
+        int id;
+        if (ReadFileCell(navFile, id, 4) != 1) {
+            PrintToServer("Failed to read ladder id");
+            return false;
+        }
+        PrintToServer("Ladder id: %i", id);
+        
+        float ladderWidth[1];
+        if (ReadFileFloat(navFile, ladderWidth, 1) != 1) {
+            PrintToServer("Failed to read ladderWidth");
+            return false;
+        }
+        
+        float ladderTopEndPoint[1];
+        if (ReadFileFloat(navFile, ladderTopEndPoint, 1) != 1) {
+            PrintToServer("Failed to read ladderTopEndPoint");
+            return false;
+        }
+        
+        float ladderBottomEndPoint[1];
+        if (ReadFileFloat(navFile, ladderBottomEndPoint, 1) != 1) {
+            PrintToServer("Failed to read ladderBottomEndPoint");
+            return false;
+        }
+        
+        float ladderLength[1];
+        if (ReadFileFloat(navFile, ladderLength, 1) != 1) {
+            PrintToServer("Failed to read ladderLength");
+            return false;
+        }
+        
+        int navDir;
+        if (ReadFileCell(navFile, navDir, 4) != 1) {
+            PrintToServer("Failed to read ladder navDir");
+            return false;
+        }
+        
+#define CONNAREA_TOP_FORWARD    0
+#define CONNAREA_TOP_LEFT       1
+#define CONNAREA_TOP_RIGHT      2
+#define CONNAREA_TOP_BEHIND     3
+#define CONNAREA_BOTTOM         4
+#define NUM_CONNAREAS           5
+        int connectingAreaIds[NUM_CONNAREAS];
+        for (int connAIt = 0; connAIt < sizeof(connectingAreaIds); ++connAIt) {
+            if (ReadFileCell(navFile, connectingAreaIds[connAIt], 4) != 1) {
+                PrintToServer("Failed to read ladder connectingAreaId at %i",
+                    connAIt);
+                return false;
+            }
+        }
+    }
+    
     PrintToServer("Reached end");
     
-    return false;
+    return true;
 }
 
 // Reads binary data from a file, and interprets it as contiguous float array.

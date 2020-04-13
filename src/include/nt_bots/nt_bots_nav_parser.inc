@@ -36,8 +36,14 @@ bool ReadMetaHeader(File navFile, const char[] navPath, const char[] mapName)
 #define META_NAV_IDX_MAGIC 0
 #define META_NAV_IDX_VERSION 1
 #define META_NAV_IDX_BSPSIZE 2
+
+#define ITEM_SIZE_BYTES 4
     int metaInfo[3];
-    if (ReadFile(navFile, metaInfo, sizeof(metaInfo), 4) != sizeof(metaInfo)) {
+    int totalSeeked = ReadFile(navFile, metaInfo,
+        sizeof(metaInfo), ITEM_SIZE_BYTES);
+    
+    if (totalSeeked != sizeof(metaInfo))
+    {
         PrintToServer("Failed to read meta info from file: %s", navPath);
     } else if (metaInfo[META_NAV_IDX_MAGIC] != NAV_MAGIC_NUMBER) {
         PrintToServer("Magic number mismatch: %s (%x vs %x)",
@@ -56,12 +62,21 @@ bool ReadMetaHeader(File navFile, const char[] navPath, const char[] mapName)
                 bspPath, metaInfo[META_NAV_IDX_BSPSIZE], FileSize(bspPath));
         } else {
             success = true;
-            PrintToServer("Magic: %x\nNav version: %i\nBSP size: %i\nHeader OK.",
+            PrintToServer("| Magic: %x\n| Nav version: %i\n| BSP size: %i\n\
+| Nav size: %i\n| Header OK: %s.",
                 metaInfo[META_NAV_IDX_MAGIC],
                 metaInfo[META_NAV_IDX_VERSION],
-                metaInfo[META_NAV_IDX_BSPSIZE]);
+                metaInfo[META_NAV_IDX_BSPSIZE],
+                FileSize(navPath),
+                (success == true ? "yes" : "no"));
         }
     }
+    
+    int offsetBytes = totalSeeked * ITEM_SIZE_BYTES;
+    PrintToServer("Offset items: %i, bytes: %i",
+        totalSeeked, offsetBytes);
+    navFile.Seek(offsetBytes, 0);
+    
     return success;
 }
 
@@ -108,19 +123,20 @@ probably a parsing error.", numPlaces, numPlaces);
 
 bool ReadAreas(File navFile)
 {
-    int navAreaCount;
-    if (ReadFileCell(navFile, navAreaCount, 4) != 1) {
+    int navAreaCount[1];
+    if (ReadFileUint32(navFile, navAreaCount, 1) != 1) {
         PrintToServer("Failed to read navAreaCount");
         return false;
     }
+    PrintToServer("Got %i nav areas", navAreaCount[0]);
     
-    for (int navAreaIt = 0; navAreaIt < navAreaCount; ++navAreaIt) {
-        int id;
-        if (ReadFileCell(navFile, id, 4) != 1) {
-            PrintToServer("Failed to read nav area id");
+    for (int navAreaIt = 0; navAreaIt < navAreaCount[0]; ++navAreaIt) {
+        int id[1];
+        if (ReadFileUint32(navFile, id, 1) != 1) {
+            PrintToServer("Failed to read nav id");
             return false;
         }
-        PrintToServer("Nav area id: %i", id);
+        PrintToServer("Nav area id: %i", id[0]);
         
         int attributeFlags;
         if (!navFile.ReadUint16(attributeFlags)) {
@@ -165,33 +181,35 @@ bool ReadAreas(File navFile)
         };
 
         for (int dir = 0; dir < NUM_DIRECTIONS; ++dir) {            
-            int numConnections;
-            if (ReadFileCell(navFile, numConnections, 4) != 1) {
+            int numConnections[1];
+            if (ReadFileUint32(navFile, numConnections, 1) != 1) {
                 PrintToServer("Failed to read numConnections");
                 return false;
-            } else if (numConnections > 100) {
+            } else if (numConnections[0] > 100) {
                 PrintToServer("Unreasonable numConnections (%i), \
-probably a parsing error.", numConnections);
+probably a parsing error.", numConnections[0]);
                 return false;
+            } else if (numConnections[0] == 0) {
+                PrintToServer("No connections for %s", dirNames[dir]);
+                continue;
             }
             
             PrintToServer("Num connections on %s: %i",
-                dirNames[dir], numConnections);
+                dirNames[dir], numConnections[0]);
             
-            int[] connections = new int[numConnections];
+            int[] connections = new int[numConnections[0]];
             
-            for (int connIt = 0; connIt < numConnections; ++connIt) {
-                int conn;
-                int readAreas = ReadFileCell(navFile, conn, 4);
-                if (readAreas == -1) {
-                    PrintToServer("Connection readAreas error");
-                    return false;
-                } else if (readAreas != 1) {
-                    PrintToServer("readAreas %i when expecting 1", readAreas);
-                    return false;
-                }
-                connections[connIt] = conn;
-                
+            int readConnAreas = ReadFile(navFile, connections,
+                numConnections[0], 4);
+            if (readConnAreas == -1) {
+                PrintToServer("readConnAreas read error");
+                return false;
+            } else if (readConnAreas != numConnections[0]) {
+                PrintToServer("readConnAreas %i but expected %i",
+                    readConnAreas, numConnections[0]);
+            }
+            
+            for (int connIt = 0; connIt < readConnAreas; ++connIt) {
                 PrintToServer("Area %i has a %sern connection to area %i",
                     id,
                     dirNames[dir],
@@ -450,113 +468,36 @@ bool ParseNavFile(File navFile, const char[] navPath, const char[] mapName)
         return false;
     }
     
+    PrintToServer("| Consumed %i / %i bytes",
+        FilePosition(navFile), FileSize(navPath));
+    
     // Places
     int numPlaces = ReadPlaces(navFile);
     if (numPlaces == -1) {
         return false;
     }
     
+    PrintToServer("| Consumed %i / %i bytes",
+        FilePosition(navFile), FileSize(navPath));
+    
     // Navigation areas
     if (!ReadAreas(navFile)) {
         return false;
     }
+    
+    PrintToServer("| Consumed %i / %i bytes",
+        FilePosition(navFile), FileSize(navPath));
     
     // Ladders
     if (!ReadLadders(navFile)) {
         return false;
     }
     
+    PrintToServer("| Consumed %i / %i bytes",
+        FilePosition(navFile), FileSize(navPath));
+    
     PrintToServer("Reached end");
     
     return true;
 }
-
-// Reads binary data from a file, and interprets it as contiguous uint32
-// array. Returns number of elements read, or -1 on error.
-//int ReadFileUint32(File file, int[] items, int num_items)
-//{
-//    if (num_items < 1) {
-//        return 0;
-//    }
-//    
-//#define SIZEOF_UINT32_BYTES 4
-//#define NUM_UI32_BYTES num_items * SIZEOF_UINT32_BYTES
-//    // Need to zero initialize
-//    char []byteBuffer = new char[NUM_UI32_BYTES];
-//    if (ReadFileString(file, byteBuffer, NUM_UI32_BYTES,
-//        NUM_UI32_BYTES) != NUM_UI32_BYTES)
-//    {
-//        LogError("Read failed");
-//        return -1;
-//    }
-//    
-//    PrintToServer("UINT32 %u as hex: %x (binary %b). Would be %d signed.",
-//        byteBuffer, byteBuffer, byteBuffer, byteBuffer);
-//    
-//    PrintToServer("Bytes:%b, %b, %b, %b",
-//        byteBuffer[0], byteBuffer[1], byteBuffer[2], byteBuffer[3]);
-//    
-//#define UINT32_STR_REPRESENTATION_MAXLEN 10
-//    decl String:i32String[UINT32_STR_REPRESENTATION_MAXLEN + 1];
-//    
-//    int i;
-//    for (i = 0; i < num_items; ++i) {
-//        PrintToServer("Num: i32: %i ui32: %u hex: %x",
-//            view_as<int>(byteBuffer[i * SIZEOF_UINT32_BYTES]),
-//            byteBuffer[i * SIZEOF_UINT32_BYTES],
-//            byteBuffer[i * SIZEOF_UINT32_BYTES]);
-//        
-//        // Raw hex to unsigned 32int to signed SourceMod int32
-//        if (Format(i32String, UINT32_STR_REPRESENTATION_MAXLEN + 1,
-//            "%u", byteBuffer[i * SIZEOF_UINT32_BYTES]) < 1)
-//        {
-//            LogError("Float format failed");
-//            return -1;
-//        }
-//        items[i] = StringToInt(i32String);
-//        PrintToServer("String res: %s as int32: %i",
-//            i32String, items[i]);
-//    }
-//    return i;
-//}
-
-// Reads binary data from a file, and interprets it as contiguous float array.
-// Returns number of elements read, or -1 on error.
-int ReadFileFloat(File file, float[] items, int num_items)
-{
-    if (num_items < 1) {
-        return 0;
-    }
-    
-#define SIZEOF_FLOAT_BYTES 4
-#define NUM_FLOAT_BYTES num_items * SIZEOF_FLOAT_BYTES
-    decl String:byteBuffer[NUM_FLOAT_BYTES];
-    if (ReadFileString(file, byteBuffer, NUM_FLOAT_BYTES,
-        NUM_FLOAT_BYTES) != NUM_FLOAT_BYTES)
-    {
-        LogError("Read failed");
-        return -1;
-    }
-    
-    // Max characters for storing significant figures. Increase if you need more.
-#define FLOAT_STR_REPRESENTATION_MAXLEN 31
-    decl String:floatString[FLOAT_STR_REPRESENTATION_MAXLEN + 1];
-    
-    int i;
-    for (i = 0; i < num_items; ++i) {
-        // SourcePawn (1.10.0.6478) gets confused if we do a raw byte cast
-        // on the array pointer, so routing the reinterpret via string format.
-        if (Format(floatString, FLOAT_STR_REPRESENTATION_MAXLEN + 1,
-            "%f", view_as<float>(byteBuffer[i * SIZEOF_FLOAT_BYTES])) < 1)
-        {
-            LogError("Float format failed");
-            return -1;
-        }
-        items[i] = StringToFloat(floatString);
-        PrintToServer("String res: %s as float: %f",
-            floatString, items[i]);
-    }
-    return i;
-}
-
 #endif // _NT_BOTS_NAV_PARSER_INC_

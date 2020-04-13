@@ -389,6 +389,263 @@ probably a parsing error.", numPlaces, numPlaces);
         
         // Extent of area
         float minsmaxs[6];
+        
+        PrintToServer("About to read minsmaxs");
+        
+        if (ReadFileFloat(navFile, minsmaxs,
+            sizeof(minsmaxs)) != sizeof(minsmaxs))
+        {
+            PrintToServer("Failed to read minsmaxs");
+            return false;
+        }
+        PrintToServer("mins: %f %f %f\nmaxs: %f %f %f",
+            minsmaxs[0], minsmaxs[1], minsmaxs[2],
+            minsmaxs[3], minsmaxs[4], minsmaxs[5]);
+        
+        PrintToServer("Done!!");
+        return false;
+        
+        // Heights of implicit corners
+#define Z_HEIGHT_NE 0
+#define Z_HEIGHT_SW 1
+        float zHeights[2];
+        if (ReadFileFloat(navFile, zHeights,
+            sizeof(zHeights)) != sizeof(zHeights))
+        {
+            PrintToServer("Failed to read zHeights");
+            return false;
+        }
+        PrintToServer("zHeights_NE: %f\nzHeights_SW: %f",
+            zHeights[Z_HEIGHT_NE], zHeights[Z_HEIGHT_SW]);
+        
+        // Connections to adjacent areas
+#define NORTH           0
+#define EAST            1
+#define SOUTH           2
+#define WEST            3
+#define NUM_DIRECTIONS  4
+        new const String:dirNames[NUM_DIRECTIONS][] = {
+            "north", "east", "south", "west"
+        };
+
+        for (int dir = 0; dir < NUM_DIRECTIONS; ++dir) {
+            int numConnections;
+            if (ReadFileCell(navFile, numConnections, 4) != 1) {
+                PrintToServer("Failed to read numConnections");
+                return false;
+            } else if (numConnections > 100) {
+                PrintToServer("Unreasonable numConnections (%i), \
+probably a parsing error.", numConnections);
+                return false;
+            }
+            
+            PrintToServer("Num connections: %i", numConnections);
+            int[] connections = new int[numConnections];
+            for (int connIt = 0; connIt < numConnections; ++connIt) {
+                PrintToServer("Iterating connection %i", connIt);
+                if (ReadFileCell(navFile, connections[connIt], 4) != 1) {
+                    PrintToServer("Failed to read connection id");
+                    return false;
+                }
+                PrintToServer("Area %i has a %sern connection to area %i",
+                    navAreaIt,
+                    dirNames[dir],
+                    connections[connIt]);
+            }
+        }
+        
+        // HidingSpot objects
+        int hidingSpotCount;
+        if (!navFile.ReadUint8(hidingSpotCount)) {
+            PrintToServer("Failed to read hidingSpotCount");
+            return false;
+        }
+        PrintToServer("hidingSpotCount: %i", hidingSpotCount);
+        
+        for (int hsIt = 0; hsIt < hidingSpotCount; ++hsIt) {
+            int hidingSpotId;
+            if (!navFile.ReadInt32(hidingSpotId)) {
+                PrintToServer("Failed to read hidingSpotCount");
+                return false;
+            }
+            
+            float hsPos[3];
+            if (ReadFileFloat(navFile, hsPos,
+                sizeof(hsPos)) != sizeof(hsPos))
+            {
+                PrintToServer("Failed to read hsPos");
+                return false;
+            }
+            
+            int hsFlags;
+            if (!navFile.ReadUint8(hsFlags)) {
+                PrintToServer("Failed to read hsFlags");
+                return false;
+            }
+            
+            PrintToServer("Hiding spot %i as pos: %f %f %f (flags %i)",
+                hsIt, hsPos[0], hsPos[1], hsPos[2], hsFlags);
+        }
+        
+        // Approach area info
+        int numApproachAreas;
+        if (!navFile.ReadUint8(numApproachAreas)) {
+            PrintToServer("Failed to read numApproachAreas");
+            return false;
+        }
+        
+        for (int apprIt = 0; apprIt < numApproachAreas; ++apprIt) {
+            int approachHereAreaId;
+            if (!navFile.ReadInt32(approachHereAreaId)) {
+                PrintToServer("Failed to read approachHereAreaId");
+                return false;
+            }
+            
+            int approachPrevAreaId;
+            if (!navFile.ReadInt32(approachPrevAreaId)) {
+                PrintToServer("Failed to read approachPrevAreaId");
+                return false;
+            }
+            
+            int approachPrevToHereHowType;
+            if (!navFile.ReadUint8(approachPrevToHereHowType)) {
+                PrintToServer("Failed to read approachPrevToHereHowType");
+                return false;
+            }
+            
+            PrintToServer("%i Approach here area: %i, prev: %i, type: %i",
+                apprIt,
+                approachHereAreaId,
+                approachPrevAreaId,
+                approachPrevToHereHowType);
+        }
+        
+        // Encounter spots for this area
+        int encounterSpotCount;
+        if (!navFile.ReadInt32(encounterSpotCount)) {
+            PrintToServer("Failed to read encounterSpotCount");
+            return false;
+        }
+        
+        for (int encIt = 0; encIt < encounterSpotCount; ++encIt) {
+            int encFromAreaId;
+            if (!navFile.ReadInt32(encFromAreaId)) {
+                PrintToServer("Failed to read encFromAreaId");
+                return false;
+            }
+            
+            int fromDir;
+            if (!navFile.ReadUint8(fromDir)) {
+                PrintToServer("Failed to read fromDir");
+                return false;
+            }
+            
+            int encToAreaId;
+            if (!navFile.ReadInt32(encToAreaId)) {
+                PrintToServer("Failed to read encToAreaId");
+                return false;
+            }
+            
+            int toDir;
+            if (!navFile.ReadUint8(toDir)) {
+                PrintToServer("Failed to read toDir");
+                return false;
+            }
+            
+            // List of spots along this path
+            int spotsCount;
+            if (!navFile.ReadUint8(spotsCount)) {
+                PrintToServer("Failed to read spotsCount");
+                return false;
+            }
+            
+            for (int spotIt = 0; spotIt < spotsCount; ++spotIt) {
+                int spotId;
+                if (!navFile.ReadInt32(spotId)) {
+                    PrintToServer("Failed to read spotId");
+                    return false;
+                } else if (spotId == 0) {
+                    // If spotId == 0, order->spot == NULL. This happens 
+                    // if we've loaded a nav mesh that has been edited 
+                    // but not re-analyzed.
+                    PrintToServer("spotId at it %i == 0; spot is NULL",
+                        spotIt, spotId);
+                } else {
+                    // Parametric distance along ray where this spot
+                    // first has LOS to our path. This is C cast from
+                    // float -> (uchar)(255*float).
+                    int t;
+                    if (!navFile.ReadUint8(t)) {
+                        PrintToServer("Failed to read t");
+                        return false;
+                    }
+                    PrintToServer("spot t: %i", t);
+                }
+            }
+        }
+        
+        int placeDictEntry;
+        if (!navFile.ReadUint16(placeDictEntry)) {
+            PrintToServer("Failed to read placeDictEntry");
+            return false;
+        }
+        PrintToServer("placeDictEntry: %i", placeDictEntry);
+        
+#define LADDER_DIR_UP   0
+#define LADDER_DIR_DOWN 1
+#define LADDER_NUM_DIRS 2
+        for (int ladDir = 0; ladDir < LADDER_NUM_DIRS; ++ladDir) {
+            // Number of encounter paths for this area
+            int numLadderPaths;
+            if (!navFile.ReadInt32(numLadderPaths)) {
+                PrintToServer("Failed to read numLadderPaths");
+                return false;
+            }
+            
+            for (int ladPath = 0; ladPath < numLadderPaths; ++ladPath) {
+                int ladderId;
+                if (!navFile.ReadInt32(ladderId)) {
+                    PrintToServer("Failed to read ladderId");
+                    return false;
+                }
+            }
+        }
+
+#define NAV_TEAM_FIRST 0
+#define NAV_TEAM_SECOND 1
+#define MAX_NAV_TEAMS 2
+        // No spot in the map should take longer than this to reach
+        float earliestOccupyTimes[MAX_NAV_TEAMS];
+        if (ReadFileFloat(navFile, earliestOccupyTimes,
+            sizeof(earliestOccupyTimes)) != sizeof(earliestOccupyTimes))
+        {
+            PrintToServer("Failed to read earliestOccupyTimes[]");
+            return false;
+        }
+        PrintToServer("earliestOccupyTimes: %f and %f",
+            earliestOccupyTimes[NAV_TEAM_FIRST],
+            earliestOccupyTimes[NAV_TEAM_SECOND]);
+    }
+    
+    ///////////////
+#if(0)
+    for (int navAreaIt = 0; navAreaIt < navAreaCount; ++navAreaIt) {
+        int id;
+        if (ReadFileCell(navFile, id, 4) != 1) {
+            PrintToServer("Failed to read nav area id");
+            return false;
+        }
+        PrintToServer("Nav area id: %i", id);
+        
+        int attributeFlags;
+        if (ReadFileCell(navFile, attributeFlags, 2) != 1) {
+            PrintToServer("Failed to read attributeFlags");
+            return false;
+        } 
+        PrintToServer("attributeFlags: %i", attributeFlags);
+        
+        // Extent of area
+        float minsmaxs[6];
         if (ReadFileFloat(navFile, minsmaxs,
             sizeof(minsmaxs)) != sizeof(minsmaxs))
         {
@@ -508,6 +765,7 @@ probably a parsing error.", numConnections);
             }
         }
     }
+#endif
     
     PrintToServer("Reached end");
     
@@ -520,14 +778,24 @@ int ReadFileFloat(File file, float[] items, int num_items)
 {
 #define SIZEOF_FLOAT_BYTES 4
 #define NUM_BYTES num_items * SIZEOF_FLOAT_BYTES
-    decl String:buff[NUM_BYTES + 1];
-    buff[NUM_BYTES] = '\0';
-    if (ReadFileString(file, buff, NUM_BYTES + 1, NUM_BYTES) != NUM_BYTES) {
-        return -1;
+    decl String:byteBuffer[NUM_BYTES];
+    if (ReadFileString(file, byteBuffer, NUM_BYTES, NUM_BYTES) != NUM_BYTES) {
+        ThrowError("Read failed");
     }
+    
     int i;
+    decl String:floatString[32];
     for (i = 0; i < num_items; ++i) {
-        items[i] = view_as<float>(buff[i * SIZEOF_FLOAT_BYTES]);
+        // SourcePawn (1.10.0.6478) gets confused if we do a raw byte cast
+        // on the array pointer, so routing the reinterpret via string format.
+        if (Format(floatString, sizeof(floatString),
+            "%f", view_as<float>(byteBuffer[i * SIZEOF_FLOAT_BYTES])) < 1)
+        {
+            ThrowError("Float format failed");
+        }
+        items[i] = StringToFloat(floatString);
+        PrintToServer("String res: %s as float: %f",
+            floatString, items[i]);
     }
     return i;
 }

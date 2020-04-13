@@ -102,8 +102,6 @@ probably a parsing error.", numPlaces, numPlaces);
         PrintToServer("Place name: %s", placeName);
         
         // We don't do m_hasUnnamedAreas (version 12+ feature).
-        
-        ReadAreas(navFile);
     }
     return numPlaces;
 }
@@ -125,17 +123,14 @@ bool ReadAreas(File navFile)
         PrintToServer("Nav area id: %i", id);
         
         int attributeFlags;
-        if (ReadFileCell(navFile, attributeFlags, 2) != 1) {
+        if (!navFile.ReadUint16(attributeFlags)) {
             PrintToServer("Failed to read attributeFlags");
             return false;
-        } 
+        }
         PrintToServer("attributeFlags: %i", attributeFlags);
         
         // Extent of area
-        float minsmaxs[6];
-        
-        PrintToServer("About to read minsmaxs");
-        
+        float minsmaxs[6];   
         if (ReadFileFloat(navFile, minsmaxs,
             sizeof(minsmaxs)) != sizeof(minsmaxs))
         {
@@ -169,28 +164,23 @@ bool ReadAreas(File navFile)
             "north", "east", "south", "west"
         };
 
-        for (int dir = 0; dir < NUM_DIRECTIONS; ++dir) {
-            int numConnections[1];
-            
-            if (ReadFileUint32(navFile, numConnections, 1) != 1) {
+        for (int dir = 0; dir < NUM_DIRECTIONS; ++dir) {            
+            int numConnections;
+            if (ReadFileCell(navFile, numConnections, 4) != 1) {
                 PrintToServer("Failed to read numConnections");
                 return false;
-            }
-            /*if (ReadFile(navFile, numConnections, 1, 4) != 1) {
-                PrintToServer("Failed to read numConnections");
-                return false;
-            } */else if (numConnections[0] > 100) {
+            } else if (numConnections > 100) {
                 PrintToServer("Unreasonable numConnections (%i), \
-probably a parsing error.", numConnections[0]);
+probably a parsing error.", numConnections);
                 return false;
             }
             
             PrintToServer("Num connections on %s: %i",
-                dirNames[dir], numConnections[0]);
+                dirNames[dir], numConnections);
             
-            int[] connections = new int[numConnections[0]];
+            int[] connections = new int[numConnections];
             
-            for (int connIt = 0; connIt < numConnections[0]; ++connIt) {
+            for (int connIt = 0; connIt < numConnections; ++connIt) {
                 int conn;
                 int readAreas = ReadFileCell(navFile, conn, 4);
                 if (readAreas == -1) {
@@ -460,7 +450,7 @@ bool ParseNavFile(File navFile, const char[] navPath, const char[] mapName)
         return false;
     }
     
-    // Places and their navigation areas
+    // Places
     int numPlaces = ReadPlaces(navFile);
     if (numPlaces == -1) {
         return false;
@@ -471,6 +461,7 @@ bool ParseNavFile(File navFile, const char[] navPath, const char[] mapName)
         return false;
     }
     
+    // Ladders
     if (!ReadLadders(navFile)) {
         return false;
     }
@@ -482,52 +473,52 @@ bool ParseNavFile(File navFile, const char[] navPath, const char[] mapName)
 
 // Reads binary data from a file, and interprets it as contiguous uint32
 // array. Returns number of elements read, or -1 on error.
-int ReadFileUint32(File file, int[] items, int num_items)
-{
-    if (num_items < 1) {
-        return 0;
-    }
-    
-#define SIZEOF_UINT32_BYTES 4
-#define NUM_UI32_BYTES num_items * SIZEOF_UINT32_BYTES
-    // Need to zero initialize
-    char []byteBuffer = new char[NUM_UI32_BYTES];
-    if (ReadFileString(file, byteBuffer, NUM_UI32_BYTES,
-        NUM_UI32_BYTES) != NUM_UI32_BYTES)
-    {
-        LogError("Read failed");
-        return -1;
-    }
-    
-    PrintToServer("UINT32 %u as hex: %x (binary %b). Would be %d signed.",
-        byteBuffer, byteBuffer, byteBuffer, byteBuffer);
-    
-    PrintToServer("Bytes:%b, %b, %b, %b",
-        byteBuffer[0], byteBuffer[1], byteBuffer[2], byteBuffer[3]);
-    
-#define UINT32_STR_REPRESENTATION_MAXLEN 10
-    decl String:i32String[UINT32_STR_REPRESENTATION_MAXLEN + 1];
-    
-    int i;
-    for (i = 0; i < num_items; ++i) {
-        PrintToServer("Num: i32: %i ui32: %u hex: %x",
-            view_as<int>(byteBuffer[i * SIZEOF_UINT32_BYTES]),
-            byteBuffer[i * SIZEOF_UINT32_BYTES],
-            byteBuffer[i * SIZEOF_UINT32_BYTES]);
-        
-        // Raw hex to unsigned 32int to signed SourceMod int32
-        if (Format(i32String, UINT32_STR_REPRESENTATION_MAXLEN + 1,
-            "%u", byteBuffer[i * SIZEOF_UINT32_BYTES]) < 1)
-        {
-            LogError("Float format failed");
-            return -1;
-        }
-        items[i] = StringToInt(i32String);
-        PrintToServer("String res: %s as int32: %i",
-            i32String, items[i]);
-    }
-    return i;
-}
+//int ReadFileUint32(File file, int[] items, int num_items)
+//{
+//    if (num_items < 1) {
+//        return 0;
+//    }
+//    
+//#define SIZEOF_UINT32_BYTES 4
+//#define NUM_UI32_BYTES num_items * SIZEOF_UINT32_BYTES
+//    // Need to zero initialize
+//    char []byteBuffer = new char[NUM_UI32_BYTES];
+//    if (ReadFileString(file, byteBuffer, NUM_UI32_BYTES,
+//        NUM_UI32_BYTES) != NUM_UI32_BYTES)
+//    {
+//        LogError("Read failed");
+//        return -1;
+//    }
+//    
+//    PrintToServer("UINT32 %u as hex: %x (binary %b). Would be %d signed.",
+//        byteBuffer, byteBuffer, byteBuffer, byteBuffer);
+//    
+//    PrintToServer("Bytes:%b, %b, %b, %b",
+//        byteBuffer[0], byteBuffer[1], byteBuffer[2], byteBuffer[3]);
+//    
+//#define UINT32_STR_REPRESENTATION_MAXLEN 10
+//    decl String:i32String[UINT32_STR_REPRESENTATION_MAXLEN + 1];
+//    
+//    int i;
+//    for (i = 0; i < num_items; ++i) {
+//        PrintToServer("Num: i32: %i ui32: %u hex: %x",
+//            view_as<int>(byteBuffer[i * SIZEOF_UINT32_BYTES]),
+//            byteBuffer[i * SIZEOF_UINT32_BYTES],
+//            byteBuffer[i * SIZEOF_UINT32_BYTES]);
+//        
+//        // Raw hex to unsigned 32int to signed SourceMod int32
+//        if (Format(i32String, UINT32_STR_REPRESENTATION_MAXLEN + 1,
+//            "%u", byteBuffer[i * SIZEOF_UINT32_BYTES]) < 1)
+//        {
+//            LogError("Float format failed");
+//            return -1;
+//        }
+//        items[i] = StringToInt(i32String);
+//        PrintToServer("String res: %s as int32: %i",
+//            i32String, items[i]);
+//    }
+//    return i;
+//}
 
 // Reads binary data from a file, and interprets it as contiguous float array.
 // Returns number of elements read, or -1 on error.

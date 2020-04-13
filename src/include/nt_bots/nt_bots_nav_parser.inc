@@ -780,7 +780,8 @@ int ReadFileFloat(File file, float[] items, int num_items)
 #define NUM_BYTES num_items * SIZEOF_FLOAT_BYTES
     decl String:byteBuffer[NUM_BYTES];
     if (ReadFileString(file, byteBuffer, NUM_BYTES, NUM_BYTES) != NUM_BYTES) {
-        ThrowError("Read failed");
+        LogError("Read failed");
+        return -1;
     }
     
     int i;
@@ -791,7 +792,8 @@ int ReadFileFloat(File file, float[] items, int num_items)
         if (Format(floatString, sizeof(floatString),
             "%f", view_as<float>(byteBuffer[i * SIZEOF_FLOAT_BYTES])) < 1)
         {
-            ThrowError("Float format failed");
+            LogError("Float format failed");
+            return -1;
         }
         items[i] = StringToFloat(floatString);
         PrintToServer("String res: %s as float: %f",

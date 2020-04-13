@@ -788,12 +788,15 @@ int ReadFileFloat(File file, float[] items, int num_items)
         return -1;
     }
     
+    // Max characters for significant figures. Increase if you need more.
+#define FLOAT_STR_REPRESENTATION_MAXLEN 31
+    decl String:floatString[FLOAT_STR_REPRESENTATION_MAXLEN + 1];
+    
     int i;
-    decl String:floatString[32];
     for (i = 0; i < num_items; ++i) {
         // SourcePawn (1.10.0.6478) gets confused if we do a raw byte cast
         // on the array pointer, so routing the reinterpret via string format.
-        if (Format(floatString, sizeof(floatString),
+        if (Format(floatString, FLOAT_STR_REPRESENTATION_MAXLEN + 1,
             "%f", view_as<float>(byteBuffer[i * SIZEOF_FLOAT_BYTES])) < 1)
         {
             LogError("Float format failed");

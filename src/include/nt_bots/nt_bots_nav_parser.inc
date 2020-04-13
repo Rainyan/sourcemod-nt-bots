@@ -776,6 +776,10 @@ probably a parsing error.", numConnections);
 // Returns number of elements read, or -1 on error.
 int ReadFileFloat(File file, float[] items, int num_items)
 {
+    if (num_items < 1) {
+        return 0;
+    }
+    
 #define SIZEOF_FLOAT_BYTES 4
 #define NUM_BYTES num_items * SIZEOF_FLOAT_BYTES
     decl String:byteBuffer[NUM_BYTES];

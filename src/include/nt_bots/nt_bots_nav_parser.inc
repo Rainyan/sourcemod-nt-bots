@@ -788,7 +788,7 @@ int ReadFileFloat(File file, float[] items, int num_items)
         return -1;
     }
     
-    // Max characters for significant figures. Increase if you need more.
+    // Max characters for storing significant figures. Increase if you need more.
 #define FLOAT_STR_REPRESENTATION_MAXLEN 31
     decl String:floatString[FLOAT_STR_REPRESENTATION_MAXLEN + 1];
     

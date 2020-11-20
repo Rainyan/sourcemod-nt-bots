@@ -463,6 +463,247 @@ bool ParseNavFile(File navFile, const char[] navPath, const char[] mapName)
 {
     // CNavMesh::Save
     
+    int navSize = FileSize(navPath);
+    PrintToServer("Nav size: %i", navSize);
+    char[] buffer = new char[navSize];
+    int written = navFile.ReadString(buffer, navSize, navSize);
+    PrintToServer("Dumping %i written nav data:", written);
+    //for (int i = 0; i < navSize; ++i) {
+    //    PrintToServer("i %i: hex: %x binary: %b", i, buffer[i], buffer[i]);
+    //}
+    
+    int offset = 0;
+    
+    PrintToServer("Magic: 0x%x", buffer[offset]);
+    offset += 4;
+    PrintToServer("Version: %i", buffer[offset]);
+    offset += 4;
+    PrintToServer("BspSize: %i", buffer[offset]);
+    offset += 4;
+    
+    decl String:bitBuff[4];
+    Format(bitBuff, sizeof(bitBuff), "%c%c%c%c",
+        '\0', '\0', buffer[offset], buffer[offset + 1]);
+    PrintToServer("hex: 0x%x bin: %b", bitBuff, bitBuff);
+    int numPlaces = view_as<int>(bitBuff[0]);
+    PrintToServer("Num places: %i (%x -- %b)",
+        numPlaces, numPlaces, numPlaces);
+    offset += 2;
+    
+    for (int i = 0; i < numPlaces; ++i) {
+        Format(bitBuff, sizeof(bitBuff), "%c%c%c%c",
+            '\0', '\0', buffer[offset], buffer[offset + 1]);
+        int nameLen = bitBuff[0];
+        PrintToServer("Name len: %i (%x -- %b)",
+            nameLen, nameLen, nameLen);
+        offset += 2;
+        
+        PrintToServer("Name: %s", buffer[offset]);
+        offset += nameLen;
+    }
+    
+    int navAreaCount = view_as<int>(buffer[offset]);
+    PrintToServer("Nav area count: %i (from %i)",
+        navAreaCount, buffer[offset]);
+    offset += 4;
+    
+    for (int i = 0; i < navAreaCount; ++i) {
+        int id = view_as<int>(buffer[offset]);
+        offset += 4;
+        PrintToServer("ID: %i", id);
+        
+        Format(bitBuff, sizeof(bitBuff), "%c%c%c%c",
+            '\0', '\0', buffer[offset], buffer[offset + 1]);
+        PrintToServer("hex: 0x%x bin: %b", bitBuff, bitBuff);
+        int attribFlags = view_as<int>(bitBuff[0]);
+        PrintToServer("attribFlags: %i (%x -- %b)",
+            attribFlags, attribFlags, attribFlags);
+        offset += 2;
+        
+        for (int j = 0; j < 6; ++j) {
+            PrintToServer("ExtentOfArea%i: %f", j, buffer[offset]);
+            offset += 4;
+        }
+        
+        for (int j = 0; j < 2; ++j) {
+            PrintToServer("HeightOfImplicitCorners%i: %f",
+                j, buffer[offset]);
+            offset += 4;
+        }
+        
+        new const String:dirNames[NUM_DIRECTIONS][] = {
+            "north", "east", "south", "west"
+        };
+        
+        for (int dir = 0; dir < NUM_DIRECTIONS; ++dir) {
+            int count = view_as<int>(buffer[offset]);
+            PrintToServer("Area %i has %i %sern connections.",
+                id, count, dirNames[dir]);
+            offset += 4;
+            for (int countIt = 0; countIt < count; ++countIt) {
+                PrintToServer("Area %i has %sern connection to area: %i",
+                    id, dirNames[dir], buffer[offset]);
+                offset += 4;
+            }
+        }
+        
+        char hidingSpotCount = view_as<char>(buffer[offset]);
+        PrintToServer("hidingSpotCount: %u (%x -- %b)",
+            hidingSpotCount, hidingSpotCount, hidingSpotCount);
+        offset += 1;
+        
+        for (int j = 0; j < hidingSpotCount; ++j) {
+            int hsId = view_as<int>(buffer[offset]); offset += 4;
+            for (int k = 0; k < 3; ++k) {
+                PrintToServer("%i Hidingspot %i: %f",
+                    hsId, k, buffer[offset]);
+                offset += 4;
+            }
+            PrintToServer("%i hsFlags: %c", hsId, buffer[offset]);
+            offset += 1;
+        }
+        
+        char approachAreaCount = view_as<char>(buffer[offset]);
+        PrintToServer("approachAreaCount: %u (%x -- %b)",
+            approachAreaCount, approachAreaCount, approachAreaCount);
+        offset += 1;
+        
+        for (int j = 0; j < approachAreaCount; ++j) {
+            PrintToServer("%i approach here area: %i",
+                j, buffer[offset]);
+            offset += 4;
+            PrintToServer("%i approach prev area: %i",
+                j, buffer[offset]);
+            offset += 4;
+            PrintToServer("%i prev to here how: %c",
+                j, buffer[offset]);
+            offset += 1;
+            PrintToServer("%i approach next area: %i",
+                j, buffer[offset]);
+            offset += 4;
+            PrintToServer("%i here to next how: %c",
+                j, buffer[offset]);
+            offset += 1;
+        }
+        
+        int encounterSpotCount = view_as<int>(buffer[offset]);
+        PrintToServer("encounterSpotCount: %i (%x -- %b)",
+            encounterSpotCount, encounterSpotCount, encounterSpotCount);
+        offset += 4;
+        
+        for (int j = 0; j < encounterSpotCount; ++j) {
+            PrintToServer("%i enc from area: %i",
+                j, buffer[offset]);
+            offset += 4;
+            PrintToServer("%i enc from dir: %c",
+                j, buffer[offset]);
+            offset += 1;
+            PrintToServer("%i enc to area: %i",
+                j, buffer[offset]);
+            offset += 4;
+            PrintToServer("%i enc to dir: %c",
+                j, buffer[offset]);
+            offset += 1;
+            
+            char spotCount = view_as<char>(buffer[offset]);
+            PrintToServer("spotCount: %c (%x -- %b)",
+                spotCount, spotCount, spotCount);
+            offset += 1;
+            
+            for (int k = 0; k < spotCount; ++k) {
+                PrintToServer("%i enc spot %i id: %i",
+                    j, k, buffer[offset]);
+                offset += 4;
+                PrintToServer("%i enc spot %i t: %c",
+                    j, k, buffer[offset]);
+                offset += 1;
+            }
+        }
+        
+        Format(bitBuff, sizeof(bitBuff), "%c%c%c%c",
+            '\0', '\0', buffer[offset], buffer[offset + 1]);
+        PrintToServer("hex: 0x%x bin: %b", bitBuff, bitBuff);
+        int placeDictIdxType = view_as<int>(bitBuff[0]);
+        PrintToServer("placeDictIdxType: %i (%x -- %b)",
+            placeDictIdxType, placeDictIdxType, placeDictIdxType);
+        offset += 2;
+        
+        for (int j = 0; j < LADDER_NUM_DIRS; ++j) {
+            int ladConnCount = view_as<int>(buffer[offset]);
+            offset += 4;
+            for (int l = 0; l < ladConnCount; ++l) {
+                PrintToServer("Area %i ladder %i conn %i id: %i",
+                    id, j, l, buffer[offset]);
+                offset += 4;
+            }
+        }
+        
+        for (int j = 0; j < MAX_NAV_TEAMS; ++j) {
+            PrintToServer("Area %i team %i earliest occupy time: %f",
+                id, j, buffer[offset]);
+            offset += 4;
+        }
+
+        int numLadders = view_as<int>(buffer[offset]);
+        offset += 4;
+        
+        for (int j = 0; j < numLadders; ++j) {
+            PrintToServer("Ladder %i id: %i", j, buffer[offset]);
+            offset += 4;
+            
+            PrintToServer("Ladder it %i extent: %f", j, buffer[offset]);
+            offset += 4;
+            
+            PrintToServer("Ladder it %i top endpoint: %f %f %f",
+                j,
+                buffer[offset + (0 * 4)],
+                buffer[offset + (1 * 4)],
+                buffer[offset + (2 * 4)]);
+            offset += (3 * 4);
+            
+            PrintToServer("Ladder it %i bottom endpoint: %f %f %f",
+                j,
+                buffer[offset + (0 * 4)],
+                buffer[offset + (1 * 4)],
+                buffer[offset + (2 * 4)]);
+            offset += (3 * 4);
+            
+            PrintToServer("Ladder it %i length: %f", j, buffer[offset]);
+            offset += 4;
+            
+            PrintToServer("Ladder it %i navdirtype enum: %i",
+                j, buffer[offset]);
+            offset += 4; // TODO: enum == 4?
+            
+            PrintToServer("Ladder it %i top forward area: %i",
+                j, buffer[offset]);
+            offset += 4;
+            
+            PrintToServer("Ladder it %i top left area: %i",
+                j, buffer[offset]);
+            offset += 4;
+            
+            PrintToServer("Ladder it %i top right area: %i",
+                j, buffer[offset]);
+            offset += 4;
+            
+            PrintToServer("Ladder it %i top behind area: %i",
+                j, buffer[offset]);
+            offset += 4;
+            
+            PrintToServer("Ladder it %i bottom area: %i",
+                j, buffer[offset]);
+            offset += 4;
+        }
+    }
+    
+    PrintToServer("Consumed %i of %i bytes.",
+        offset, navSize);
+    
+    return (navSize > 0 && offset == navSize);
+    
+#if(0)
+    
     // Bail out early if we have an invalid nav file.
     if (!ReadMetaHeader(navFile, navPath, mapName)) {
         return false;
@@ -499,5 +740,6 @@ bool ParseNavFile(File navFile, const char[] navPath, const char[] mapName)
     PrintToServer("Reached end");
     
     return true;
+#endif
 }
 #endif // _NT_BOTS_NAV_PARSER_INC_

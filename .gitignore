@@ -1,9 +1,16 @@
 # Compile helper scripts
+*.bat
 *.cmd
 *.sh
+
+# Data generation scripts
+*.py
 
 # Binary output
 *.smx
 
 # Emacs style backups
 *~
+
+# Python import placeholders
+valve_keyvalues_python/

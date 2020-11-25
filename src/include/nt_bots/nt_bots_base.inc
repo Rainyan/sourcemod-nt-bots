@@ -141,14 +141,14 @@ bool DidNotHitSelf(int self, int contentsMask, int target)
     return self != target;
 }
 
-void MultiplyVectors(float v1[3], float v2[3], float res[3])
+void MultiplyVectors(const float v1[3], const float v2[3], float res[3])
 {
     res[0] = v1[0] * v2[0];
     res[1] = v1[1] * v2[1];
     res[2] = v1[2] * v2[2];
 }
 
-bool VectorsEqual(float v1[3], float v2[3])
+bool VectorsEqual(const float v1[3], const float v2[3])
 {
 	return v1[0] == v2[0] && v1[1] == v2[1] && v1[2] == v2[2];
 }

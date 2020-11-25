@@ -9,14 +9,14 @@ bool ParseNavOfMap(const char[] mapName)
 	if (Format(navPath, sizeof(navPath), "maps/%s.kv", mapName) < 1) {
 		ThrowError("Format failed");
 	} else if (!FileExists(navPath)) {
-		PrintToServer("File does not exist: %s", navPath);
+		SetFailState("File does not exist: %s", navPath);
 		return false;
 	}
 	
 	if (Format(bspPath, sizeof(bspPath), "maps/%s.bsp", mapName) < 1) {
 		ThrowError("Format failed");
 	} else if (!FileExists(bspPath)) {
-		PrintToServer("File does not exist: %s", bspPath);
+		SetFailState("File does not exist: %s", bspPath);
 		return false;
 	}
 	
@@ -56,7 +56,7 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 			return false;
 		}
 		
-		PrintToServer("Processing section: %s", section);
+		//PrintToServer("Processing section: %s", section);
 		
 		// TODO: use the actual hexadecimal representation
 		decl String:magic[9];
@@ -94,30 +94,36 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 			return false;
 		}
 		
-		PrintToServer("Processing section: %s", section);
+		//PrintToServer("Processing section: %s", section);
 		
-		float vec[3];
-		float zero[3] = { -1.0, -1.0, -1.0 };
+		float invalid[3] = { -123.4, -1337.0, -432.1 };
 		
+		Area area;
 		decl String:areaid[16] = "area_0";
-		for (int area = 0; kv.JumpToKey(areaid, false); Format(areaid, sizeof(areaid), "area_%d", ++area)) {
-			int area_id = kv.GetNum("id", -1);
-			if (area_id == -1) {
+		for (int area_i = 0; kv.JumpToKey(areaid, false); Format(areaid, sizeof(areaid), "area_%d", ++area_i)) {
+			area.id = kv.GetNum("id", -1);
+			if (area.id == -1) {
 				SetFailState("%s :: %s: Failed to get \"id\"", section, areaid);
 			}
 			
-			PrintToServer("%s: id = %d", areaid, area);
+			//PrintToServer("%s: id = %d", areaid, area.id);
 			
 			{
 				kv.JumpToKey("extents_nw_corner", false);
 				if (!kv.GetSectionName(section, sizeof(section))) {
 					return false;
 				}
-				PrintToServer("Section is currently: %s", section);
-				kv.GetVector("origin", vec, zero);
+				//PrintToServer("Section is currently: %s", section);
 				
-				PrintToServer("Vector: %f %f %f", vec[0], vec[1], vec[2]);
-				PrintToServer("Implicit height: %f", kv.GetFloat("implicit_height", -1.0));
+				kv.GetVector("origin", area.extents_nw_corner, invalid);
+				if (VectorsEqual(area.extents_nw_corner, invalid)) {
+					SetFailState("Invalid vector at area.extents_nw_corner");
+				}
+				
+				//PrintToServer("Vector: %f %f %f", area.extents_nw_corner[0], area.extents_nw_corner[1], area.extents_nw_corner[2]);
+				
+				area.implicit_height_nw = kv.GetFloat("implicit_height", -1.0);
+				//PrintToServer("Implicit height: %f", area.implicit_height_nw);
 				kv.GoBack();
 			}
 			
@@ -126,11 +132,15 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 				if (!kv.GetSectionName(section, sizeof(section))) {
 					return false;
 				}
-				PrintToServer("Section is currently: %s", section);
-				kv.GetVector("origin", vec, zero);
+				//PrintToServer("Section is currently: %s", section);
 				
-				PrintToServer("Vector: %f %f %f", vec[0], vec[1], vec[2]);
-				PrintToServer("Implicit height: %f", kv.GetFloat("implicit_height", -1.0));
+				kv.GetVector("origin", area.extents_se_corner, invalid);
+				if (VectorsEqual(area.extents_se_corner, invalid)) {
+					SetFailState("Invalid vector at area.extents_se_corner");
+				}
+				
+				area.implicit_height_se = kv.GetFloat("implicit_height", -1.0);
+				//PrintToServer("Implicit height: %f", area.implicit_height_se);
 				kv.GoBack();
 			}
 			
@@ -139,7 +149,7 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 				if (!kv.GetSectionName(section, sizeof(section))) {
 					return false;
 				}
-				PrintToServer("Section is currently: %s", section);
+				//PrintToServer("Section is currently: %s", section);
 				
 				new const String:dirnames[][] = { "north", "east", "south", "west" };
 				for (int dir = 0; dir < sizeof(dirnames); ++dir) {
@@ -149,7 +159,21 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 					}
 					decl String:connection_id[16] = "connection_0";
 					for (int connection = 0; kv.JumpToKey(connection_id, false); Format(connection_id, sizeof(connection_id), "connection_%d", ++connection)) {
-						PrintToServer("area id %d has %sern connection to area id %d", area_id, dirnames[dir], kv.GetNum("connects_to_area_id", -1));
+						int new_connection = kv.GetNum("connects_to_area_id", -1);
+						if (new_connection == -1) {
+							SetFailState("Invalid connection id");
+						}
+						
+						switch (dir)
+						{
+							case DIR_NORTH:	{ area.connected_areas_north[area.num_connected_areas[dir]++] = new_connection; }
+							case DIR_EAST:	{ area.connected_areas_east[area.num_connected_areas[dir]++] = new_connection; }
+							case DIR_SOUTH:	{ area.connected_areas_south[area.num_connected_areas[dir]++] = new_connection; }
+							case DIR_WEST:	{ area.connected_areas_west[area.num_connected_areas[dir]++] = new_connection; }
+							default:			{ SetFailState("Unknown direction %d", dir); }
+						}
+						
+						//PrintToServer("area id %d has %sern connection to area id %d", area.id, dirnames[dir], new_connection);
 						kv.GoBack();
 					}
 					kv.GoBack();
@@ -162,7 +186,7 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 				if (!kv.GetSectionName(section, sizeof(section))) {
 					return false;
 				}
-				PrintToServer("Section is currently: %s", section);
+				//PrintToServer("Section is currently: %s", section);
 				
 				decl String:spot_id[16] = "spot_0";
 				for (int spot = 0; kv.JumpToKey(spot_id, false); Format(spot_id, sizeof(spot_id), "spot_%d", ++spot)) {
@@ -174,18 +198,21 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 					kv.GetVector("origin", hiding_spot_origin);
 					kv.GoBack();
 					
-					PrintToServer("area id %d has hiding spot id %d (pos: %f %f %f), flags: %d",
-						area_id, hiding_spot_id,
-						hiding_spot_origin[0], hiding_spot_origin[1], hiding_spot_origin[2],
-						flags);
+					//PrintToServer("area id %d has hiding spot id %d (pos: %f %f %f), flags: %d",
+					//	area.id, hiding_spot_id,
+					//	hiding_spot_origin[0], hiding_spot_origin[1], hiding_spot_origin[2],
+					//	flags);
+					
 					kv.GoBack();
 				}
 				kv.GoBack();
 			}
 			kv.GoBack();
+			
+			AddArea(area);
 		}
 	}
 	
-	return false;
+	return true;
 }
 #endif // _NT_BOTS_NAV_PARSER_INC_

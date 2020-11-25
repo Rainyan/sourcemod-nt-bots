@@ -3,10 +3,40 @@
 
 static float _dir[NEO_MAX_PLAYERS+1][3];
 static float _pos[NEO_MAX_PLAYERS+1][3];
-static float _pos_offset[] = { 0.0, 0.0, 32.0 };
+static float _pos_offset[] = { 0.0, 0.0, 0.0 };
 
 public void ThinkHook(int client)
 {
+	//PrintToServer("Running ThinkHook for client %d", client);
+	
+	float pos[3];
+	GetClientAbsOrigin(client, pos);
+	
+	Area area[1];
+	area[0].id = -1;
+	GetNearestArea(pos, area);
+	if (area[0].id == -1) {
+		SetFailState("Failed to get area in ThinkHook");
+	}
+	area[0].GetOrigin(s_targetPos);
+	//s_targetPos[2] += 24.0;
+	
+	//PrintToServer("Bot moving: %f %f %f --> %f %f %f (distance: %f)",
+	//	pos[0], pos[1], pos[2],
+	//	s_targetPos[0], s_targetPos[1], s_targetPos[2],
+	//	GetVectorDistance(pos, s_targetPos));
+	
+	if (VectorsEqual(pos, s_targetPos, 16.0)) {
+		//PrintToServer("Close enough; requesting a new destination");
+		pos[0] = GetRandomFloat(-500.0, 500.0);
+		pos[1] = GetRandomFloat(-500.0, 500.0);
+		GetNearestArea(pos, area);
+		if (area[0].id == -1) {
+			SetFailState("Failed to get area in ThinkHook");
+		}
+		area[0].GetOrigin(s_targetPos);
+	}
+	
 #define PITCH 0
 #define YAW 1
 #define ROLL 2
@@ -58,7 +88,7 @@ bool CheckIfStuck(int client)
 		delete ray;
 		
 		if (!IsNullVector(xyz)) {
-			if (GetVectorDistance(currentPos, xyz) < 64.0) {
+			if (GetVectorDistance(currentPos, xyz) > BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE) {
 				return true;
 			}
 		}
@@ -68,6 +98,7 @@ bool CheckIfStuck(int client)
 }
 
 float lastVal = 0.0;
+float lastAng = 0.0;
 // returns buttons
 int DecideVelocity(int client, float vel[3])
 {
@@ -84,9 +115,14 @@ int DecideVelocity(int client, float vel[3])
 	GetClientAbsAngles(client, absAng);
 	
 	bool isStuck = CheckIfStuck(client);
+	//if (isStuck) { PrintToServer("STUCK"); }
 	
 	GetVectorAngles(_dir[client], s_ang);
 	s_ang[1] += g_cAngleOffset.FloatValue;
+	
+	s_ang[1] = Lerp(lastAng, s_ang[1], 0.25);
+	lastAng = s_ang[1];
+	
 	if (isStuck) {
 		float randAng = Lerp(lastVal, GetRandomFloat(lastVal, lastVal + 5.0));
 		if (FloatAbs(randAng) > 360) {
@@ -121,10 +157,10 @@ int DecideVelocity(int client, float vel[3])
 	
 	int color[] = { 235, 50, 100, 255 };
 			
-	if (dist > 100.0) {
+	if (dist > BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE) {
 		
 	} else {
-		_dir[client] = NULL_VECTOR;
+		//_dir[client] = NULL_VECTOR;
 		color[0] = 0;
 		color[1] = 100;
 		color[2] = 75;
@@ -145,8 +181,10 @@ int DecideVelocity(int client, float vel[3])
 	vel = _dir[client];
 	
 	if (isStuck) {
-		if (dist > 100.0) {
-			return IN_JUMP;
+		if (dist > BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE) {
+			if (GetRandomInt(0, 10) == 0) {
+				return IN_JUMP;
+			}
 		}
 	}
 	return 0;

@@ -185,9 +185,19 @@ void MultiplyVectors(const float v1[3], const float v2[3], float res[3])
     res[2] = v1[2] * v2[2];
 }
 
-bool VectorsEqual(const float v1[3], const float v2[3])
+bool VectorsEqual(const float[3] v1, const float[3] v2, const float max_ulps = 0.0)
 {
-	return v1[0] == v2[0] && v1[1] == v2[1] && v1[2] == v2[2];
+	// Needs to exactly equal.
+	if (max_ulps == 0) {
+		return v1[0] == v2[0] && v1[1] == v2[1] && v1[2] == v2[2];
+	}
+	// Allow an inaccuracy of size max_ulps.
+	else {
+		if (FloatAbs(v1[0] - v2[0]) > max_ulps) { return false; }
+		if (FloatAbs(v1[1] - v2[1]) > max_ulps) { return false; }
+		if (FloatAbs(v1[2] - v2[2]) > max_ulps) { return false; }
+		return true;
+	}
 }
 
 float Lerp(float a, float b, float scale = 0.0)

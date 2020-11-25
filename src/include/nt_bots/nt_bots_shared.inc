@@ -5,9 +5,11 @@
 
 #define NEO_MAX_PLAYERS 32
 
+#define BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE 32.0
+
 const SDKHookType thinkHookType = SDKHook_PreThink;
 
-float s_targetPos[3] = { 256.0, 512.0, 32.0 };
+float s_targetPos[3] = { 0.0, 0.0, 0.0 };
 float s_ang[3];
 
 ConVar g_cAngleOffset = null;

@@ -21,7 +21,8 @@ public void OnPluginStart()
 	} else if (!ParseNavOfMap(mapName)) {
 		SetFailState("Failed to parse nav for %s", mapName);
 	}
-	ListAreas();
+	//ListAreas();
+	//TestNearestArea();
 }
 
 public void OnMapStart()

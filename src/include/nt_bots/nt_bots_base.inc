@@ -82,7 +82,7 @@ void InitialiseAreasArray()
 #endif
 }
 
-void ListAreas()
+stock void ListAreas()
 {
 	Area area;
 	int num_iterated = 0;
@@ -126,6 +126,43 @@ void AddArea(const Area area)
 int GetNumAreas()
 {
 	return _num_areas;
+}
+
+bool GetNearestArea(const float pos[3], Area[1] out_area)
+{
+	float nearest_distance = -1.0;
+	
+	int num_iterated = 0;
+	for (int i = _areas.Length - 1; num_iterated++ < GetNumAreas(); --i) {
+		Area this_area;
+		_areas.GetArray(i, this_area);
+		
+		float this_origin[3];
+		this_area.GetOrigin(this_origin);
+		float this_distance = GetVectorDistance(pos, this_origin);
+		
+		if (nearest_distance == -1 || this_distance < nearest_distance) {
+			out_area[0] = this_area;
+			nearest_distance = this_distance;
+		}
+	}
+	return nearest_distance != -1;
+}
+
+stock void TestNearestArea()
+{
+	float pos[3];
+	pos[0] = GetRandomFloat(-500.0, 500.0);
+	pos[1] = GetRandomFloat(-500.0, 500.0);
+	Area a[1];
+	if (!GetNearestArea(pos, a)) {
+		SetFailState("Failed to GetNearestArea");
+	}
+	float origin[3];
+	a[0].GetOrigin(origin);
+	PrintToServer("Nearest area to %f %f %f is: %d (%f %f %f)",
+		pos[0], pos[1], pos[2],
+		a[0].id, origin[0], origin[1], origin[2]);
 }
 
 // Is this client a bot that we want to use for bot AI?

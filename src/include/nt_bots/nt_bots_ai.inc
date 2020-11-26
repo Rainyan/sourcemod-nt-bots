@@ -81,10 +81,23 @@ int DecideVelocity(int client, float vel[3])
 	GetClientAbsOrigin(client, _pos[client]);
 	AddVectors(_pos[client], _pos_offset, _pos[client]);
 	
-	float planned_position[3];
-	if (!GetPlannedPosition(planned_position)) {
+	if (s_movementPlanStack == -1) {
 		return 0;
 	}
+	
+	if (s_movementPlan[s_movementPlanStack] == 0) {
+		return 0;
+	}
+	
+	Area planned_area[1];
+	if (!GetAreaById(s_movementPlan[s_movementPlanStack], planned_area)) {
+		return 0;
+	}
+	
+	int buttons = 0;
+	
+	float planned_position[3];
+	planned_area[0].GetOrigin(planned_position);
 	
 	//PrintToServer("I'm at %f %f %f and planned pos is %f %f %f",
 	//	_pos[client][0], _pos[client][1], _pos[client][2],
@@ -193,7 +206,14 @@ int DecideVelocity(int client, float vel[3])
 	
 	vel = _dir[client];
 	
-	return 0;
+	if (planned_area[0].ShouldCrouchHere()) {
+		buttons |= IN_DUCK;
+	}
+	if (planned_area[0].ShouldJumpHere()) {
+		buttons |= IN_JUMP;
+	}
+	
+	return buttons;
 }
 
 #endif // _NT_BOTS_AI_INC_

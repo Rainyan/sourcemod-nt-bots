@@ -14,7 +14,7 @@ enum Direction {
 
 enum struct Area {
 	int id;
-	int attribute_flags;
+	NavAttributeType attribute_flags;
 	
 	float extents_nw_corner[3];
 	float implicit_height_nw;
@@ -58,7 +58,7 @@ enum struct Area {
 	void Empty()
 	{
 		this.id = 0;
-		this.attribute_flags = 0;
+		this.attribute_flags = NAV_MESH_NOFLAGS;
 		
 		this.extents_nw_corner = vec3_origin;
 		this.implicit_height_nw = 0.0;
@@ -101,6 +101,16 @@ enum struct Area {
 	bool IsNeighbourOf(const int id_other)
 	{
 		return AreNeighbours(this.id, id_other);
+	}
+	
+	bool ShouldCrouchHere()
+	{
+		return (this.attribute_flags & NAV_MESH_CROUCH) ? true : false;
+	}
+	
+	bool ShouldJumpHere()
+	{
+		return (this.attribute_flags & NAV_MESH_JUMP) ? true : false;
 	}
 }
 

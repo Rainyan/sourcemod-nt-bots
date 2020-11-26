@@ -13,6 +13,23 @@
 
 #define MAX_AREA_MOVES_PLANNED_FOR_FUTURE 100
 
+enum NavAttributeType {
+	NAV_MESH_NOFLAGS = 0,
+	
+	NAV_MESH_CROUCH		= 0x0001, // must crouch to use this node/area
+	NAV_MESH_JUMP			= 0x0002, // must jump to traverse this area
+	NAV_MESH_PRECISE		= 0x0004, // do not adjust for obstacles, just move along area
+	NAV_MESH_NO_JUMP		= 0x0008, // inhibit discontinuity jumping
+	NAV_MESH_STOP			= 0x0010, // must stop when entering this area
+	NAV_MESH_RUN			= 0x0020, // must run to traverse this area
+	NAV_MESH_WALK			= 0x0040, // must walk to traverse this area
+	NAV_MESH_AVOID		= 0x0080, // avoid this area unless alternatives are too dangerous
+	NAV_MESH_TRANSIENT	= 0x0100, // area may become blocked, and should be periodically checked
+	NAV_MESH_DONT_HIDE	= 0x0200, // area should not be considered for hiding spot generation
+	NAV_MESH_STAND		= 0x0400, // bots hiding in this area should stand
+	NAV_MESH_NO_HOSTAGES	= 0x0800, // hostages shouldn't use this area
+};
+
 const SDKHookType thinkHookType = SDKHook_PreThink;
 
 float vec3_origin[3] = { 0.0, 0.0, 0.0 };

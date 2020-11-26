@@ -12,7 +12,7 @@ public void OnPluginStart()
 	g_cAngleOffset = CreateConVar("sm_nt_bots_ang_offset", "0");
 	g_cBitsOverride = CreateConVar("sm_nt_bots_bits", "0");
 	
-	CreateTimer(1.0, Timer_Generic, _, TIMER_REPEAT);
+	CreateTimer(BOT_TIMED_THINK_INTERVAL, Timer_Generic, _, TIMER_REPEAT);
 	
 	InitialiseAreasArray();
 	decl String:mapName[PLATFORM_MAX_PATH];

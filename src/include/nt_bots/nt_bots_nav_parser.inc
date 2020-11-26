@@ -100,7 +100,9 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 		
 		Area area;
 		decl String:areaid[16] = "area_0";
-		for (int area_i = 0; kv.JumpToKey(areaid, false); Format(areaid, sizeof(areaid), "area_%d", ++area_i)) {
+		for (int area_i = 0; kv.JumpToKey(areaid, false);
+			Format(areaid, sizeof(areaid), "area_%d", ++area_i))
+		{
 			area.id = kv.GetNum("id", -1);
 			if (area.id == -1) {
 				SetFailState("%s :: %s: Failed to get \"id\"", section, areaid);
@@ -164,14 +166,21 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 							SetFailState("Invalid connection id");
 						}
 						
+						if (area.num_connected_areas[dir] > MAX_AREA_CONNECTIONS) {
+							decl String:sectionname[64];
+							kv.GetSectionName(sectionname, sizeof(sectionname));
+							SetFailState("area.num_connected_areas (id %d) overflowed in area %d::%s (section name: \"%s\" --> connects_to_area_id %d)",
+								area.id, area.num_connected_areas[dir], dirnames[dir], sectionname, new_connection);
+						}
 						switch (dir)
 						{
-							case DIR_NORTH:	{ area.connected_areas_north[area.num_connected_areas[dir]++] = new_connection; }
-							case DIR_EAST:	{ area.connected_areas_east[area.num_connected_areas[dir]++] = new_connection; }
-							case DIR_SOUTH:	{ area.connected_areas_south[area.num_connected_areas[dir]++] = new_connection; }
-							case DIR_WEST:	{ area.connected_areas_west[area.num_connected_areas[dir]++] = new_connection; }
+							case DIR_NORTH:	{ area.connected_areas_north[area.num_connected_areas[dir]] = new_connection; }
+							case DIR_EAST:	{ area.connected_areas_east[area.num_connected_areas[dir]] = new_connection; }
+							case DIR_SOUTH:	{ area.connected_areas_south[area.num_connected_areas[dir]] = new_connection; }
+							case DIR_WEST:	{ area.connected_areas_west[area.num_connected_areas[dir]] = new_connection; }
 							default:			{ SetFailState("Unknown direction %d", dir); }
 						}
+						area.num_connected_areas[dir] += 1;
 						
 						//PrintToServer("area id %d has %sern connection to area id %d", area.id, dirnames[dir], new_connection);
 						kv.GoBack();
@@ -190,12 +199,12 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 				
 				decl String:spot_id[16] = "spot_0";
 				for (int spot = 0; kv.JumpToKey(spot_id, false); Format(spot_id, sizeof(spot_id), "spot_%d", ++spot)) {
-					int hiding_spot_id = kv.GetNum("id", -1);
-					int flags = kv.GetNum("flags", -1);
+					//int hiding_spot_id = kv.GetNum("id", -1);
+					//int flags = kv.GetNum("flags", -1);
 					
 					kv.JumpToKey("pos", false);
-					float hiding_spot_origin[3];
-					kv.GetVector("origin", hiding_spot_origin);
+					//float hiding_spot_origin[3];
+					//kv.GetVector("origin", hiding_spot_origin);
 					kv.GoBack();
 					
 					//PrintToServer("area id %d has hiding spot id %d (pos: %f %f %f), flags: %d",
@@ -210,6 +219,7 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 			kv.GoBack();
 			
 			AddArea(area);
+			area.Empty();
 		}
 	}
 	

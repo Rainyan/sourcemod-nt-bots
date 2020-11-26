@@ -9,34 +9,6 @@ public void ThinkHook(int client)
 {
 	//PrintToServer("Running ThinkHook for client %d", client);
 	
-	float pos[3];
-	GetClientAbsOrigin(client, pos);
-	
-	Area area[1];
-	area[0].id = -1;
-	GetNearestArea(pos, area);
-	if (area[0].id == -1) {
-		SetFailState("Failed to get area in ThinkHook");
-	}
-	area[0].GetOrigin(s_targetPos);
-	//s_targetPos[2] += 24.0;
-	
-	//PrintToServer("Bot moving: %f %f %f --> %f %f %f (distance: %f)",
-	//	pos[0], pos[1], pos[2],
-	//	s_targetPos[0], s_targetPos[1], s_targetPos[2],
-	//	GetVectorDistance(pos, s_targetPos));
-	
-	if (VectorsEqual(pos, s_targetPos, 16.0)) {
-		//PrintToServer("Close enough; requesting a new destination");
-		pos[0] = GetRandomFloat(-500.0, 500.0);
-		pos[1] = GetRandomFloat(-500.0, 500.0);
-		GetNearestArea(pos, area);
-		if (area[0].id == -1) {
-			SetFailState("Failed to get area in ThinkHook");
-		}
-		area[0].GetOrigin(s_targetPos);
-	}
-	
 #define PITCH 0
 #define YAW 1
 #define ROLL 2
@@ -109,7 +81,18 @@ int DecideVelocity(int client, float vel[3])
 	GetClientAbsOrigin(client, _pos[client]);
 	AddVectors(_pos[client], _pos_offset, _pos[client]);
 	
-	SubtractVectors(s_targetPos, _pos[client], _dir[client]);
+	float planned_position[3];
+	if (!GetPlannedPosition(planned_position)) {
+		return 0;
+	}
+	
+	//PrintToServer("I'm at %f %f %f and planned pos is %f %f %f",
+	//	_pos[client][0], _pos[client][1], _pos[client][2],
+	//	planned_position[0], planned_position[1], planned_position[2]);
+	//PrintToServer("Goal is at: %f %f %f",
+	//	s_targetPos[0], s_targetPos[1], s_targetPos[2]);
+	
+	SubtractVectors(planned_position, _pos[client], _dir[client]);
 	
 	float absAng[3];
 	GetClientAbsAngles(client, absAng);
@@ -151,42 +134,65 @@ int DecideVelocity(int client, float vel[3])
 	
 	AddVectors(fwd, right, res);
 	AddVectors(res, up, res);
-	NormalizeVector(res, res);
+	//NormalizeVector(res, res);
 	
-	float dist = GetVectorDistance(_pos[client], s_targetPos);
+	float dist = GetVectorDistance(_pos[client], planned_position);
 	
-	int color[] = { 235, 50, 100, 255 };
-			
-	if (dist > BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE) {
-		
-	} else {
-		//_dir[client] = NULL_VECTOR;
+	int color[4];
+	color[3] = 255;
+	
+	if (dist <= BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE) {
+		//_dir[client] = vec3_origin;
 		color[0] = 0;
 		color[1] = 100;
 		color[2] = 75;
+		
+		if (s_movementPlanStack >= 0) {
+			--s_movementPlanStack;
+		}
+	} else if (isStuck) {
+		color[0] = 100;
+		color[1] = 100;
+		color[2] = 75;
+	} else {
+		color[0] = 235;
+		color[1] = 50;
+		color[2] = 255;
 	}
 	
 	MultiplyVectors(_dir[client], res, _dir[client]);
-	SetRandomSeed(GetTime());
-	float randX = GetRandomFloat(0.5, 10.0) * GetRandomFloat(_dir[client][RIGHT] * 1.5, _dir[client][RIGHT]);
-	SetRandomSeed(GetTime() - 10);
-	float randY = GetRandomFloat(0.5, 10.0) * GetRandomFloat(-_dir[client][FORWARD], _dir[client][FORWARD]);
-	_dir[client][FORWARD] += randX;
-	_dir[client][RIGHT] += randY;
 	
-	TE_SetupBeamPoints(_pos[client], s_targetPos, rayIndex, rayIndex,
+	TE_SetupBeamPoints(_pos[client], planned_position, rayIndex, rayIndex,
 		0, 1, 1.0, 2.0, 2.5, 5, 1.0, color, 5);
 	TE_SendToAll();
 	
-	vel = _dir[client];
-	
+	static int num_cycles_stuck;
 	if (isStuck) {
+		float randX = GetRandomFloat(-0.5, 0.5) * GetRandomFloat(_dir[client][RIGHT], _dir[client][RIGHT]);
+		float randY = GetRandomFloat(-0.5, 0.5) * GetRandomFloat(-_dir[client][FORWARD], _dir[client][FORWARD]);
+		
+		float wiggle_scale = 10.0;
+		if (num_cycles_stuck <= 100) {
+			++num_cycles_stuck;
+		}
+		randX *= (num_cycles_stuck++ * GetRandomFloat(-wiggle_scale, wiggle_scale));
+		randY *= (num_cycles_stuck++ * GetRandomFloat(-wiggle_scale, wiggle_scale));
+		
+		_dir[client][FORWARD] += randX;
+		_dir[client][RIGHT] += randY;
+		
+		
 		if (dist > BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE) {
 			if (GetRandomInt(0, 10) == 0) {
 				return IN_JUMP;
 			}
 		}
+	} else {
+		num_cycles_stuck = 0;
 	}
+	
+	vel = _dir[client];
+	
 	return 0;
 }
 

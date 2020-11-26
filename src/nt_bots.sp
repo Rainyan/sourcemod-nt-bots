@@ -4,11 +4,12 @@
 #include <sdkhooks>
 #include <sdktools>
 
-#include "./include/nt_bots/nt_bots_base.inc"
 #include "./include/nt_bots/nt_bots_shared.inc"
+#include "./include/nt_bots/nt_bots_base.inc"
 #include "./include/nt_bots/nt_bots_ai.inc"
 #include "./include/nt_bots/nt_bots_commands.inc"
 #include "./include/nt_bots/nt_bots_natives.inc"
+#include "./include/nt_bots/pathfind.inc"
 #include "./include/nt_bots/nt_bots_nav_parser.inc"
 #include "./include/nt_bots/nt_bots_timers.inc"
 

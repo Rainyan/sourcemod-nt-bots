@@ -24,14 +24,14 @@ void TimedThink(int client)
 		return;
 	}
 	
-	Area this_area[1];
+	NavArea this_area[1];
 	if (!GetNearestArea(client_pos, this_area)) {
 		return;
 	} else if (this_area[0].id == 0) {
 		SetFailState("This area id == 0");
 	}
 	
-	Area target_area[1];
+	NavArea target_area[1];
 	if (!GetNearestArea(s_targetPos, target_area)) {
 		return;
 	}

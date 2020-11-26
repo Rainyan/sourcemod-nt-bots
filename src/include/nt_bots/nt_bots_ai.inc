@@ -89,7 +89,7 @@ int DecideVelocity(int client, float vel[3])
 		return 0;
 	}
 	
-	Area planned_area[1];
+	NavArea planned_area[1];
 	if (!GetAreaById(s_movementPlan[s_movementPlanStack], planned_area)) {
 		return 0;
 	}

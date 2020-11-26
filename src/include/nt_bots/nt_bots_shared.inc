@@ -53,6 +53,9 @@ enum NavTraverseType {
 	NUM_TRAVERSE_TYPES
 };
 
+ArrayList TheNavAreaList = null;
+int num_areas_in_the_nav_list;
+
 const SDKHookType thinkHookType = SDKHook_PreThink;
 
 float vec3_origin[3] = { 0.0, 0.0, 0.0 };

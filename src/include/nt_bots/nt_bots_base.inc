@@ -2,10 +2,11 @@
 #define _NT_BOTS_BASE_INC_
 
 #include "include/nt_bots/nav_area.inc"
+#include "include/nt_bots/nav_mesh.inc"
 
 float AreaDistance(const int id_a, const int id_b)
 {
-	Area a[1]; Area b[1];
+	NavArea a[1]; NavArea b[1];
 	if (!GetAreaById(id_a, a)) { ThrowError("Failed to get id"); }
 	if (!GetAreaById(id_b, b)) { ThrowError("Failed to get id"); }
 	
@@ -16,26 +17,23 @@ float AreaDistance(const int id_a, const int id_b)
 	return GetVectorDistance(pos_a, pos_b);
 }
 
-static ArrayList _areas = null;
-static int _num_areas = 0;
-
 void InitialiseAreasArray()
 {
 	// Note: ArrayList is not default initialized
-	_areas = new ArrayList(sizeof(Area), MAX_AREAS);
+	TheNavAreaList = new ArrayList(sizeof(NavArea), MAX_AREAS);
 	
 #if(0) // Test ArrayList iteration
 	for (int i = 0; i < MAX_AREAS; ++i) {
-		Area dummy;
+		NavArea dummy;
 		dummy.id = i;
-		_areas.PushArray(dummy);
+		TheNavAreaList.PushArray(dummy);
 	}
-	Area placeholder;
-	PrintToServer("_areas length: %d, blocksize: %d", _areas.Length, _areas.BlockSize);
+	NavArea placeholder;
+	PrintToServer("TheNavAreaList length: %d, blocksize: %d", TheNavAreaList.Length, TheNavAreaList.BlockSize);
 	int num_total = 0;
-	for (int i = _areas.Length - 1; i >= _areas.Length - MAX_AREAS; --i) {
-		_areas.GetArray(i, placeholder);
-		PrintToServer("Found Area at idx: %d (id value: %d)", i, placeholder.id);
+	for (int i = TheNavAreaList.Length - 1; i >= TheNavAreaList.Length - MAX_AREAS; --i) {
+		TheNavAreaList.GetArray(i, placeholder);
+		PrintToServer("Found NavArea at idx: %d (id value: %d)", i, placeholder.id);
 		++num_total;
 	}
 	PrintToServer("Total: %d", num_total);
@@ -44,11 +42,11 @@ void InitialiseAreasArray()
 
 stock void ListAreas()
 {
-	Area area;
+	NavArea area;
 	int num_iterated = 0;
-	for (int i = _areas.Length - 1; num_iterated++ < GetNumAreas(); --i) {
-		_areas.GetArray(i, area);
-		PrintToServer("= = = = = = = = = = = = = = = = = = = =\nFound Area at idx: %d (id value: %d)", i, area.id);
+	for (int i = TheNavAreaList.Length - 1; num_iterated++ < GetNumAreas(); --i) {
+		TheNavAreaList.GetArray(i, area);
+		PrintToServer("= = = = = = = = = = = = = = = = = = = =\nFound NavArea at idx: %d (id value: %d)", i, area.id);
 		float origin[3];
 		area.GetOrigin(origin);
 		PrintToServer("XY bounds: [ NW %f %f -  SE %f %f ], and origin: %f %f %f)",
@@ -59,7 +57,7 @@ stock void ListAreas()
 		for (NavDirType dir = NORTH; dir < NUM_DIRECTIONS; ++dir) {
 			for (int j = 0; j < area.num_connected_areas[dir]; ++j) {
 				if (j == 0) {
-					PrintToServer("\n\t- Area %d has %d %sern connections total.",
+					PrintToServer("\n\t- NavArea %d has %d %sern connections total.",
 						area.id, area.num_connected_areas[dir], nav_dir_names[dir]);
 				}
 				
@@ -71,7 +69,7 @@ stock void ListAreas()
 					case DIR_SOUTH: { connection = area.connected_areas_south[j]; }
 					case DIR_WEST: { connection = area.connected_areas_west[j]; }
 				}
-				PrintToServer("\t-- Area %d has %sern connection: %d",
+				PrintToServer("\t-- NavArea %d has %sern connection: %d",
 					area.id, nav_dir_names[dir], connection);
 			}
 		}
@@ -81,8 +79,8 @@ stock void ListAreas()
 int GetPathSolution(const int start_area_id, const int target_area_id, int[] solution_path_ids,
 	const int max_solution_length = MAX_AREAS)
 {
-	Area start_area[1];
-	Area target_area[1];
+	NavArea start_area[1];
+	NavArea target_area[1];
 	
 	if (!GetAreaById(start_area_id, start_area)) {
 		SetFailState("!GetAreaById start_area_id");
@@ -118,12 +116,12 @@ int GetPathSolution(const int start_area_id, const int target_area_id, int[] sol
 		int iter_id = target_area[0].id;
 		
 		while (!found_solution) {
-			Area iter_area[1];
+			NavArea iter_area[1];
 			if (!GetAreaById(iter_id, iter_area)) {
 				SetFailState("!GetAreaById: %d", iter_id);
 			}
 			
-			Area connected_area[1];
+			NavArea connected_area[1];
 			if (!GetAreaById(iter_id, connected_area)) {
 				SetFailState("!GetAreaById: %d", iter_id);
 			}
@@ -184,7 +182,7 @@ int GetPathSolution(const int start_area_id, const int target_area_id, int[] sol
 
 bool AreNeighbours(const int self_id, const int other_id)
 {
-	Area self_area[1];
+	NavArea self_area[1];
 	GetAreaById(self_id, self_area);
 	
 	for (NavDirType dir = NORTH; dir < NUM_DIRECTIONS; ++dir) {
@@ -216,7 +214,7 @@ int NearestConnection(const int self_id, const int[] excludes, const int num_exc
 	int nearest_connection = 0;
 	float nearest_distance = 0.0;
 	
-	Area area[1];
+	NavArea area[1];
 	GetAreaById(self_id, area);
 		
 	for (NavDirType dir = NORTH; dir < NUM_DIRECTIONS; ++dir) {
@@ -264,7 +262,7 @@ int NearestArea(const int self_id, const int[] excludes, const int num_excludes)
 	int nearest_area = 0;
 	float nearest_distance = 0.0;
 	
-	Area area;
+	NavArea area;
 	int num_iterated = 0;
 	for (int i = _areas.Length - 1; num_iterated++ < GetNumAreas(); --i) {
 		_areas.GetArray(i, area);
@@ -283,7 +281,7 @@ int NearestArea(const int self_id, const int[] excludes, const int num_excludes)
 	return nearest_area;
 }
 
-stock int GetConnections(const Area area, int[] connections, const int max_connections)
+stock int GetConnections(const NavArea area, int[] connections, const int max_connections)
 {
 	int num_connection = 0;
 	for (NavDirType dir = NORTH; dir < NUM_DIRECTIONS; ++dir) {
@@ -302,23 +300,23 @@ stock int GetConnections(const Area area, int[] connections, const int max_conne
 	return num_connections;
 }
 
-void AddArea(const Area area)
+void AddArea(const NavArea area)
 {
-	_areas.PushArray(area);
-	++_num_areas;
+	TheNavAreaList.PushArray(area);
+	++num_areas_in_the_nav_list;
 }
 
 int GetNumAreas()
 {
-	return _num_areas;
+	return num_areas_in_the_nav_list;
 }
 
-bool GetAreaById(const int id, Area[1] out)
+bool GetAreaById(const int id, NavArea[1] out)
 {
-	Area area;
+	NavArea area;
 	int num_iterated = 0;
-	for (int i = _areas.Length - 1; num_iterated++ < GetNumAreas(); --i) {
-		_areas.GetArray(i, area);
+	for (int i = TheNavAreaList.Length - 1; num_iterated++ < GetNumAreas(); --i) {
+		TheNavAreaList.GetArray(i, area);
 		if (area.id == id) {
 			out[0] = area;
 			return true;
@@ -327,14 +325,14 @@ bool GetAreaById(const int id, Area[1] out)
 	return false;
 }
 
-bool GetNearestArea(const float pos[3], Area[1] out_area)
+bool GetNearestArea(const float pos[3], NavArea[1] out_area)
 {
 	float nearest_distance = -1.0;
 	
 	int num_iterated = 0;
-	for (int i = _areas.Length - 1; num_iterated++ < GetNumAreas(); --i) {
-		Area this_area;
-		_areas.GetArray(i, this_area);
+	for (int i = TheNavAreaList.Length - 1; num_iterated++ < GetNumAreas(); --i) {
+		NavArea this_area;
+		TheNavAreaList.GetArray(i, this_area);
 		
 		float this_origin[3];
 		this_area.GetOrigin(this_origin);
@@ -351,7 +349,7 @@ bool GetNearestArea(const float pos[3], Area[1] out_area)
 int GetNearestOfAreaList(const int this_area_id, const int[] area_list, const int num_areas,
 	int& nearest_array_index)
 {
-	Area area[1];
+	NavArea area[1];
 	if (!GetAreaById(this_area_id, area)) {
 		SetFailState("!GetAreaById");
 	}
@@ -427,7 +425,7 @@ bool GetPlannedPosition(float[3] pos)
 		SetFailState("Invalid movement plan id in stack pos %d", s_movementPlanStack);
 	}
 	
-	Area area[1];
+	NavArea area[1];
 	if (!GetAreaById(s_movementPlan[s_movementPlanStack], area)) {
 		return false;
 	}

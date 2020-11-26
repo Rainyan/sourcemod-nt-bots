@@ -11,8 +11,8 @@
  * If 'goalPos' is NULL, will use the center of 'goalArea' as the goal position.
  * Returns true if a path exists.
  */
-bool NavAreaBuildPath(const Area start_area, const Area goal_area, float[3] goal_pos,
-	Function cost_function, Area closest_area)
+bool NavAreaBuildPath(const NavArea start_area, const NavArea goal_area, float[3] goal_pos,
+	Function cost_function, NavArea closest_area)
 {
 	// if we are already in the goal area, build trivial path
 	if (start_area.id == goal_area.id)

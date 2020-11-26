@@ -3,7 +3,7 @@
 
 #define MAX_AREA_CONNECTIONS 9
 
-enum struct Area {
+enum struct NavArea {
 	int id; // unique id of this area
 	int attribute_flags; // my NavTraverseType bits
 	
@@ -81,7 +81,7 @@ enum struct Area {
 	
 #if(0)
 	// TODO: Might be unnecessary
-	void CopyTo(Area[1] other)
+	void CopyTo(NavArea[1] other)
 	{
 		other[0].id = this.id;
 		other[0].parent_id = this.parent_id;

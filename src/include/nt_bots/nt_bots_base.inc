@@ -3,18 +3,20 @@
 
 #define MAX_AREA_CONNECTIONS 9
 
-enum Direction {
-	DIR_NORTH = 0,
-	DIR_EAST,
-	DIR_SOUTH,
-	DIR_WEST,
-	
-	NUM_DIRECTIONS
-}
-
 enum struct Area {
-	int id;
-	NavAttributeType attribute_flags;
+	int id; // unique id of this area
+	int attribute_flags; // my NavTraverseType bits
+	
+	int parent_id; // the area just prior to this on in the search path
+	NavTraverseType parent_how; // how we get from parent area to us
+	
+	int marker; // used to flag the area as visited
+	int open_marker; // if this equals the current marker value, we are on the open list
+	
+	int prev_open_area_id; // only valid if this.IsOpen()
+	int next_open_area_id; // only valid if this.IsOpen()
+	
+	int place; // A place is a named group of navigation areas
 	
 	float extents_nw_corner[3];
 	float implicit_height_nw;
@@ -28,7 +30,21 @@ enum struct Area {
 	int connected_areas_west[MAX_AREA_CONNECTIONS];
 	
 	int num_connected_areas[NUM_DIRECTIONS];
-	int area_traversal_stack_head[NUM_DIRECTIONS];
+	
+	void Initialize()
+	{
+		this.marker = 0;
+		this.parent_id = 0;
+		this.parent_how = GO_NORTH;
+		this.attribute_flags = 0;
+		
+	}
+	
+	void SetParent(const int parent_id, const NavTraverseType parent_how = NUM_TRAVERSE_TYPES)
+	{
+		this.parent_id = parent_id;
+		this.parent_how = parent_how;
+	}
 	
 	void GetOrigin(float out[3])
 	{
@@ -36,11 +52,39 @@ enum struct Area {
 		ScaleVector(out, 0.5);
 	}
 	
+	void MakeNewMarker()
+	{
+		if (++s_master_marker == 0) {
+			s_master_marker = 1;
+		}
+	}
+	
+	void Mark()
+	{
+		this.marker = s_master_marker;
+	}
+	
+	bool IsMarked()
+	{
+		return this.marker == s_master_marker;
+	}
+	
+	void ChangeMasterMarker()
+	{
+		++s_master_marker;
+	}
+	
+	bool IsOpen()
+	{
+		return this.open_marker == s_master_marker;
+	}
+	
 #if(0)
 	// TODO: Might be unnecessary
 	void CopyTo(Area[1] other)
 	{
 		other[0].id = this.id;
+		other[0].parent_id = this.parent_id;
 		other[0].attribute_flags = this.attribute_flags;
 		
 		other[0].extents_nw_corner = this.extents_nw_corner;
@@ -52,13 +96,13 @@ enum struct Area {
 		other[0].connected_areas_west = this.connected_areas_west;
 		
 		other[0].num_connected_areas = this.num_connected_areas;
-		other[0].area_traversal_stack_head = this.area_traversal_stack_head;
 	}
 #endif
 	void Empty()
 	{
 		this.id = 0;
-		this.attribute_flags = NAV_MESH_NOFLAGS;
+		this.parent_id = 0;
+		this.attribute_flags = 0;
 		
 		this.extents_nw_corner = vec3_origin;
 		this.implicit_height_nw = 0.0;
@@ -72,9 +116,8 @@ enum struct Area {
 			this.connected_areas_west[i] = 0;
 		}
 		
-		for (Direction dir = DIR_NORTH; dir < NUM_DIRECTIONS; ++dir) {
+		for (NavDirType dir = NORTH; dir < NUM_DIRECTIONS; ++dir) {
 			this.num_connected_areas[dir] = 0;
-			this.area_traversal_stack_head[dir] = 0;
 		}
 	}
 	
@@ -167,11 +210,11 @@ stock void ListAreas()
 			area.extents_se_corner[0], area.extents_se_corner[1],
 			origin[0], origin[1], origin[2]);
 		
-		new const String:dirnames[][] = { "north", "east", "south", "west" };
-		for (Direction dir = DIR_NORTH; dir < NUM_DIRECTIONS; ++dir) {
+		for (NavDirType dir = NORTH; dir < NUM_DIRECTIONS; ++dir) {
 			for (int j = 0; j < area.num_connected_areas[dir]; ++j) {
 				if (j == 0) {
-					PrintToServer("\n\t- Area %d has %d %sern connections total.", area.id, area.num_connected_areas[dir], dirnames[dir]);
+					PrintToServer("\n\t- Area %d has %d %sern connections total.",
+						area.id, area.num_connected_areas[dir], nav_dir_names[dir]);
 				}
 				
 				int connection = -1;
@@ -182,7 +225,8 @@ stock void ListAreas()
 					case DIR_SOUTH: { connection = area.connected_areas_south[j]; }
 					case DIR_WEST: { connection = area.connected_areas_west[j]; }
 				}
-				PrintToServer("\t-- Area %d has %sern connection: %d", area.id, dirnames[dir], connection);
+				PrintToServer("\t-- Area %d has %sern connection: %d",
+					area.id, nav_dir_names[dir], connection);
 			}
 		}
 	}
@@ -241,14 +285,14 @@ int GetPathSolution(const int start_area_id, const int target_area_id, int[] sol
 			float distance = iter_area[0].DistanceTo(connected_area[0].id);
 			prospective_distance += distance;
 			
-			for (Direction dir = DIR_NORTH; !found_solution && dir < NUM_DIRECTIONS; ++dir) {
+			for (NavDirType dir = NORTH; !found_solution && dir < NUM_DIRECTIONS; ++dir) {
 				for (int j = 0; !found_solution && j < connected_area[0].num_connected_areas[dir]; ++j) {
 					int connection = 0;
 					switch (dir) {
-						case DIR_NORTH: { connection = connected_area[0].connected_areas_north[j]; }
-						case DIR_EAST: { connection = connected_area[0].connected_areas_east[j]; }
-						case DIR_SOUTH: { connection = connected_area[0].connected_areas_south[j]; }
-						case DIR_WEST: { connection = connected_area[0].connected_areas_west[j]; }
+						case NORTH: { connection = connected_area[0].connected_areas_north[j]; }
+						case EAST: { connection = connected_area[0].connected_areas_east[j]; }
+						case SOUTH: { connection = connected_area[0].connected_areas_south[j]; }
+						case WEST: { connection = connected_area[0].connected_areas_west[j]; }
 						default: { SetFailState("Unknown dir: %d", dir); }
 					}
 					if (connection == 0) {
@@ -297,14 +341,14 @@ bool AreNeighbours(const int self_id, const int other_id)
 	Area self_area[1];
 	GetAreaById(self_id, self_area);
 	
-	for (Direction dir = DIR_NORTH; dir < NUM_DIRECTIONS; ++dir) {
+	for (NavDirType dir = NORTH; dir < NUM_DIRECTIONS; ++dir) {
 		for (int i = 0; i < self_area[0].num_connected_areas[dir]; ++i) {
 			int connection = 0;
 			switch (dir) {
-				case DIR_NORTH: { connection = self_area[0].connected_areas_north[i]; }
-				case DIR_EAST: { connection = self_area[0].connected_areas_east[i]; }
-				case DIR_SOUTH: { connection = self_area[0].connected_areas_south[i]; }
-				case DIR_WEST: { connection = self_area[0].connected_areas_west[i]; }
+				case NORTH: { connection = self_area[0].connected_areas_north[i]; }
+				case EAST: { connection = self_area[0].connected_areas_east[i]; }
+				case SOUTH: { connection = self_area[0].connected_areas_south[i]; }
+				case WEST: { connection = self_area[0].connected_areas_west[i]; }
 				default: { SetFailState("Unknown direction %d", dir); }
 			}
 			
@@ -329,14 +373,14 @@ int NearestConnection(const int self_id, const int[] excludes, const int num_exc
 	Area area[1];
 	GetAreaById(self_id, area);
 		
-	for (Direction dir = DIR_NORTH; dir < NUM_DIRECTIONS; ++dir) {
+	for (NavDirType dir = NORTH; dir < NUM_DIRECTIONS; ++dir) {
 		for (int i = 0; i < area[0].num_connected_areas[dir]; ++i) {
 			int connection = 0;
 			switch (dir) {
-				case DIR_NORTH: { connection = area[0].connected_areas_north[i]; }
-				case DIR_EAST: { connection = area[0].connected_areas_east[i]; }
-				case DIR_SOUTH: { connection = area[0].connected_areas_south[i]; }
-				case DIR_WEST: { connection = area[0].connected_areas_west[i]; }
+				case NORTH: { connection = area[0].connected_areas_north[i]; }
+				case EAST: { connection = area[0].connected_areas_east[i]; }
+				case SOUTH: { connection = area[0].connected_areas_south[i]; }
+				case WEST: { connection = area[0].connected_areas_west[i]; }
 				default: { SetFailState("Unknown direction %d", dir); }
 			}
 			
@@ -396,7 +440,7 @@ int NearestArea(const int self_id, const int[] excludes, const int num_excludes)
 stock int GetConnections(const Area area, int[] connections, const int max_connections)
 {
 	int num_connection = 0;
-	for (Direction dir = DIR_NORTH; dir < NUM_DIRECTIONS; ++dir) {
+	for (NavDirType dir = NORTH; dir < NUM_DIRECTIONS; ++dir) {
 		for (int j = 0; j < area.num_connected_areas[dir]; ++j) {
 			int connection = -1;
 			switch (dir)

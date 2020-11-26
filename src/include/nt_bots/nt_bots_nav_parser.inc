@@ -174,10 +174,10 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 						}
 						switch (dir)
 						{
-							case DIR_NORTH:	{ area.connected_areas_north[area.num_connected_areas[dir]] = new_connection; }
-							case DIR_EAST:	{ area.connected_areas_east[area.num_connected_areas[dir]] = new_connection; }
-							case DIR_SOUTH:	{ area.connected_areas_south[area.num_connected_areas[dir]] = new_connection; }
-							case DIR_WEST:	{ area.connected_areas_west[area.num_connected_areas[dir]] = new_connection; }
+							case NORTH:	{ area.connected_areas_north[area.num_connected_areas[dir]] = new_connection; }
+							case EAST:	{ area.connected_areas_east[area.num_connected_areas[dir]] = new_connection; }
+							case SOUTH:	{ area.connected_areas_south[area.num_connected_areas[dir]] = new_connection; }
+							case WEST:	{ area.connected_areas_west[area.num_connected_areas[dir]] = new_connection; }
 							default:			{ SetFailState("Unknown direction %d", dir); }
 						}
 						area.num_connected_areas[dir] += 1;

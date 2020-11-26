@@ -13,22 +13,44 @@
 
 #define MAX_AREA_MOVES_PLANNED_FOR_FUTURE 100
 
-// These are the 2007 defines, see 2013 repo etc. if upgrading this
-enum NavAttributeType {
-	NAV_MESH_NOFLAGS = 0, // not originally part of the define, but adding a zero for type correctness, so that the SM compiler is happy with it
-	
-	NAV_MESH_CROUCH		= 0x0001, // must crouch to use this node/area
-	NAV_MESH_JUMP			= 0x0002, // must jump to traverse this area
-	NAV_MESH_PRECISE		= 0x0004, // do not adjust for obstacles, just move along area
-	NAV_MESH_NO_JUMP		= 0x0008, // inhibit discontinuity jumping
-	NAV_MESH_STOP			= 0x0010, // must stop when entering this area
-	NAV_MESH_RUN			= 0x0020, // must run to traverse this area
-	NAV_MESH_WALK			= 0x0040, // must walk to traverse this area
-	NAV_MESH_AVOID		= 0x0080, // avoid this area unless alternatives are too dangerous
-	NAV_MESH_TRANSIENT	= 0x0100, // area may become blocked, and should be periodically checked
-	NAV_MESH_DONT_HIDE	= 0x0200, // area should not be considered for hiding spot generation
-	NAV_MESH_STAND		= 0x0400, // bots hiding in this area should stand
-	NAV_MESH_NO_HOSTAGES	= 0x0800, // hostages shouldn't use this area
+#define NAV_MESH_CROUCH			(1 << 0)
+#define NAV_MESH_JUMP			(1 << 1)
+#define NAV_MESH_PRECISE			(1 << 2)
+#define NAV_MESH_NO_JUMP			(1 << 3)
+#define NAV_MESH_STOP			(1 << 4)
+#define NAV_MESH_RUN				(1 << 5)
+#define NAV_MESH_WALK			(1 << 6)
+#define NAV_MESH_AVOID			(1 << 7)
+#define NAV_MESH_TRANSIENT		(1 << 8)
+#define NAV_MESH_DONT_HIDE		(1 << 9)
+#define NAV_MESH_STAND			(1 << 10)
+#define NAV_MESH_NO_HOSTAGES	(1 << 11)
+
+#define UNDEFINED_PLACE 0 // ie: "no place"
+#define ANY_PLACE 0xFFFF
+
+enum NavDirType
+{
+	NORTH = 0,
+	EAST = 1,
+	SOUTH = 2,
+	WEST = 3,
+
+	NUM_DIRECTIONS
+};
+new const String:nav_dir_names[NUM_DIRECTIONS][] = { "north", "east", "south", "west" };
+
+enum NavTraverseType {
+	// NOTE: First 4 directions MUST match NavDirType
+	GO_NORTH = 0,
+	GO_EAST,
+	GO_SOUTH,
+	GO_WEST,
+	GO_LADDER_UP,
+	GO_LADDER_DOWN,
+	GO_JUMP,
+
+	NUM_TRAVERSE_TYPES
 };
 
 const SDKHookType thinkHookType = SDKHook_PreThink;
@@ -39,6 +61,8 @@ float s_targetPos[3];
 
 int s_movementPlan[MAX_AREA_MOVES_PLANNED_FOR_FUTURE];
 int s_movementPlanStack = -1;
+
+int s_master_marker;
 
 float s_ang[3];
 

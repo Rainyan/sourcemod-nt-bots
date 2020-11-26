@@ -13,8 +13,9 @@
 
 #define MAX_AREA_MOVES_PLANNED_FOR_FUTURE 100
 
+// These are the 2007 defines, see 2013 repo etc. if upgrading this
 enum NavAttributeType {
-	NAV_MESH_NOFLAGS = 0,
+	NAV_MESH_NOFLAGS = 0, // not originally part of the define, but adding a zero for type correctness, so that the SM compiler is happy with it
 	
 	NAV_MESH_CROUCH		= 0x0001, // must crouch to use this node/area
 	NAV_MESH_JUMP			= 0x0002, // must jump to traverse this area

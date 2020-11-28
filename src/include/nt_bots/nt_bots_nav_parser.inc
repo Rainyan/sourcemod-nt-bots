@@ -144,6 +144,10 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 				kv.GoBack();
 			}
 			
+			// Calculate the centroid of this area
+			AddVectors(area.extents_nw_corner, area.extents_se_corner, area.centroid);
+			ScaleVector(area.centroid, 0.5);
+			
 			{
 				kv.JumpToKey("dirs", false);
 				if (!kv.GetSectionName(section, sizeof(section))) {

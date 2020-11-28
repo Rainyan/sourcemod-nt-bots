@@ -96,16 +96,13 @@ int DecideVelocity(int client, float vel[3])
 	
 	int buttons = 0;
 	
-	float planned_position[3];
-	planned_area[0].GetOrigin(planned_position);
-	
 	//PrintToServer("I'm at %f %f %f and planned pos is %f %f %f",
 	//	_pos[client][0], _pos[client][1], _pos[client][2],
-	//	planned_position[0], planned_position[1], planned_position[2]);
+	//	planned_area[0].centroid[0], planned_area[0].centroid[1], planned_area[0].centroid[2]);
 	//PrintToServer("Goal is at: %f %f %f",
 	//	s_targetPos[0], s_targetPos[1], s_targetPos[2]);
 	
-	SubtractVectors(planned_position, _pos[client], _dir[client]);
+	SubtractVectors(planned_area[0].centroid, _pos[client], _dir[client]);
 	
 	float absAng[3];
 	GetClientAbsAngles(client, absAng);
@@ -149,7 +146,7 @@ int DecideVelocity(int client, float vel[3])
 	AddVectors(res, up, res);
 	//NormalizeVector(res, res);
 	
-	float dist = GetVectorDistance(_pos[client], planned_position);
+	float dist = GetVectorDistance(_pos[client], planned_area[0].centroid);
 	
 	int color[4];
 	color[3] = 255;
@@ -175,7 +172,7 @@ int DecideVelocity(int client, float vel[3])
 	
 	MultiplyVectors(_dir[client], res, _dir[client]);
 	
-	TE_SetupBeamPoints(_pos[client], planned_position, rayIndex, rayIndex,
+	TE_SetupBeamPoints(_pos[client], planned_area[0].centroid, rayIndex, rayIndex,
 		0, 1, 1.0, 2.0, 2.5, 5, 1.0, color, 5);
 	TE_SendToAll();
 	

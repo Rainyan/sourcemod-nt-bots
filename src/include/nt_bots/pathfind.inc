@@ -25,7 +25,7 @@ stock bool NavAreaBuildPath(const NavArea start_area, const NavArea goal_area, f
 	if (!VectorsEqual(goal_pos, vec3_origin)) {
 		actual_goal_pos = goal_pos;
 	} else {
-		goal_area.GetOrigin(actual_goal_pos);
+		goal_area.GetCentroid(actual_goal_pos);
 	}
 	
 	

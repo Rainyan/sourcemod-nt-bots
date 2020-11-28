@@ -9,11 +9,7 @@ stock float AreaDistance(const int id_a, const int id_b)
 	if (!GetAreaById(id_a, a)) { ThrowError("Failed to get id"); }
 	if (!GetAreaById(id_b, b)) { ThrowError("Failed to get id"); }
 	
-	float pos_a[3]; float pos_b[3];
-	a[0].GetOrigin(pos_a);
-	b[0].GetOrigin(pos_b);
-	
-	return GetVectorDistance(pos_a, pos_b);
+	return GetVectorDistance(a[0].centroid, b[0].centroid);
 }
 
 stock void ListAreas()
@@ -24,7 +20,7 @@ stock void ListAreas()
 		TheNavAreaList.GetArray(i, area);
 		PrintToServer("= = = = = = = = = = = = = = = = = = = =\nFound NavArea at idx: %d (id value: %d)", i, area.id);
 		float origin[3];
-		area.GetOrigin(origin);
+		area.GetCentroid(origin);
 		PrintToServer("XY bounds: [ NW %f %f -  SE %f %f ], and origin: %f %f %f)",
 			area.extents_nw_corner[0], area.extents_nw_corner[1],
 			area.extents_se_corner[0], area.extents_se_corner[1],
@@ -310,9 +306,7 @@ stock bool GetNearestArea(const float pos[3], NavArea[1] out_area)
 		NavArea this_area;
 		TheNavAreaList.GetArray(i, this_area);
 		
-		float this_origin[3];
-		this_area.GetOrigin(this_origin);
-		float this_distance = GetVectorDistance(pos, this_origin);
+		float this_distance = GetVectorDistance(this_area.centroid, pos);
 		
 		if (nearest_distance == -1 || this_distance < nearest_distance) {
 			out_area[0] = this_area;
@@ -405,7 +399,8 @@ stock bool GetPlannedPosition(float[3] pos)
 	if (!GetAreaById(s_movementPlan[s_movementPlanStack], area)) {
 		return false;
 	}
-	area[0].GetOrigin(pos);
+	
+	pos = area[0].centroid;
 	return true;
 }
 

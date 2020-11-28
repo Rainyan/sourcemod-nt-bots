@@ -16,10 +16,10 @@ enum struct NavArea {
 	int prev_open_area_id; // only valid if this.IsOpen()
 	int next_open_area_id; // only valid if this.IsOpen()
 	
+	float centroid[3];
 	float extents_nw_corner[3];
-	float implicit_height_nw;
-	
 	float extents_se_corner[3];
+	float implicit_height_nw;
 	float implicit_height_se;
 	
 	int connected_areas_north[MAX_AREA_CONNECTIONS];
@@ -97,12 +97,6 @@ enum struct NavArea {
 	{
 		this.parent_id = parent_id;
 		this.parent_how = parent_how;
-	}
-	
-	void GetOrigin(float out[3])
-	{
-		AddVectors(this.extents_nw_corner, this.extents_se_corner, out);
-		ScaleVector(out, 0.5);
 	}
 	
 	void MakeNewMarker()

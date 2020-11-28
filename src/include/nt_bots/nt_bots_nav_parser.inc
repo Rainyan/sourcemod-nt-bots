@@ -239,10 +239,12 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 					int raw_here_to_next_area_how_type = kv.GetNum("here_to_next_area_how_type", -1);
 					
 					if (raw_prev_area_to_here_how_type < 0 || raw_prev_area_to_here_how_type >= view_as<int>(NUM_TRAVERSE_TYPES)) {
-						SetFailState("Failed to get NavTraverseType: raw_prev_area_to_here_how_type");
+						SetFailState("Failed to get NavTraverseType: raw_prev_area_to_here_how_type: %d",
+							view_as<int>(raw_prev_area_to_here_how_type));
 					}
 					if (raw_here_to_next_area_how_type < 0 || raw_here_to_next_area_how_type >= view_as<int>(NUM_TRAVERSE_TYPES)) {
-						SetFailState("Failed to get NavTraverseType: raw_here_to_next_area_how_type");
+						SetFailState("Failed to get NavTraverseType: raw_here_to_next_area_how_type: %d",
+							view_as<int>(raw_here_to_next_area_how_type));
 					}
 					
 					area.approach_info_navconnect_here[approach_area] = this_area_id;

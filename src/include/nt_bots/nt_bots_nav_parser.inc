@@ -14,7 +14,7 @@ bool ParseNavOfMap(const char[] mapName)
 	}
 	
 	if (Format(bspPath, sizeof(bspPath), "maps/%s.bsp", mapName) < 1) {
-		ThrowError("Format failed");
+		SetFailState("Format failed");
 	} else if (!FileExists(bspPath)) {
 		SetFailState("File does not exist: %s", bspPath);
 		return false;
@@ -26,9 +26,7 @@ bool ParseNavOfMap(const char[] mapName)
 	}
 	
 	bool success = ParseNavFile(kv, bspPath);
-	
 	delete kv;
-	
 	return success;
 }
 

@@ -16,8 +16,6 @@ enum struct NavArea {
 	int prev_open_area_id; // only valid if this.IsOpen()
 	int next_open_area_id; // only valid if this.IsOpen()
 	
-	int place; // A place is a named group of navigation areas
-	
 	float extents_nw_corner[3];
 	float implicit_height_nw;
 	
@@ -31,13 +29,70 @@ enum struct NavArea {
 	
 	int num_connected_areas[NUM_DIRECTIONS];
 	
+	bool is_blocked;
+	bool is_underwater;
+	
+	float danger[NUM_NAV_TEAMS]; // decaying value: based on casualties in this area, how dangerous is it
+	float danger_timestamp[NUM_NAV_TEAMS]; // timestamp of last danger update
+	
+	float cleared_timestamp[NUM_NAV_TEAMS]; // when this area was last cleared of enemies
+	
+	// --------------------------------------------------------------------------------
+	// Approach areas start
+	// --------------------------------------------------------------------------------
+	// We can't have multidimensional enum struct fields ("ApproachInfo[MAX_APPROACH_AREAS]"),
+	// so exposing that struct abstraction here, instead, to work around syntax limitations.
+	//
+	// (The "NavConnect" referred below is a union of (area id/*area); representing it as area id here.)
+	//
+	// FIXME/TODO: populate this data from the parser (it's available in the kv's)
+	// --------------------------------------------------------------------------------
+	int approach_info_navconnect_here[MAX_APPROACH_AREAS]; // the approach area
+	int approach_info_navconnect_prev[MAX_APPROACH_AREAS]; // the area just before the approach area on the path
+	int approach_info_navconnect_next[MAX_APPROACH_AREAS]; // the area just after the approach area on the path
+	NavTraverseType approach_info_prev_to_here_how[MAX_APPROACH_AREAS];
+	NavTraverseType approach_info_here_to_next_how[MAX_APPROACH_AREAS];
+	int num_approach_areas;
+	
+	// Accessor for a single "ApproachInfo", at index i. Passes that data by reference.
+	// Returns a success boolean.
+	// Won't succeed if requesting an out-of-bounds index.
+	// Won't succeed if requesting an index higher than current num_approach_areas.
+	bool GetApproachInfo(const int i, int& here, int& prev, int& next,
+		NavTraverseType& prev_to_here_how, NavTraverseType& here_to_next_how)
+	{
+		if (i < 0 || i >= MAX_APPROACH_AREAS) {
+			return false;
+		} else if (i >= this.num_approach_areas) {
+			return false;
+		}
+		here = this.approach_info_navconnect_here[i];
+		prev = this.approach_info_navconnect_prev[i];
+		next = this.approach_info_navconnect_next[i];
+		prev_to_here_how = this.approach_info_prev_to_here_how[i];
+		here_to_next_how = this.approach_info_here_to_next_how[i];
+		return true;
+	}
+	// --------------------------------------------------------------------------------
+	// Approach areas end
+	// --------------------------------------------------------------------------------
+	
 	void Initialize()
 	{
 		this.marker = 0;
 		this.parent_id = 0;
 		this.parent_how = GO_NORTH;
 		this.attribute_flags = 0;
+		this.is_blocked = false;
+		this.is_underwater = false;
 		
+		for (int i = 0; i < NUM_NAV_TEAMS; ++i) {
+			this.danger[i] = 0.0;
+			this.danger_timestamp[i] = 0.0;
+			this.cleared_timestamp[i] = 0.0;
+		}
+		
+		this.num_approach_areas = 0;
 	}
 	
 	void SetParent(const int parent_id, const NavTraverseType parent_how = NUM_TRAVERSE_TYPES)
@@ -72,6 +127,21 @@ enum struct NavArea {
 	void ChangeMasterMarker()
 	{
 		++s_master_marker;
+	}
+	
+	// Decay the danger values
+	void DecayDanger()
+	{
+		// one kill == 1.0, which we will forget about in two minutes (1.0 / 120.0)
+#define DECAY_RATE 0.008333
+		for (int i = 0; i< NUM_NAV_TEAMS; ++i) {
+			float delta_time = GetGameTime() - this.danger_timestamp[i];
+			this.danger[i] -= DECAY_RATE * delta_time;
+			if (this.danger[i] < 0) {
+				this.danger[i] = 0.0;
+			}
+			this.danger_timestamp[i] = GetGameTime();
+		}
 	}
 	
 	bool IsOpen()

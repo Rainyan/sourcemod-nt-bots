@@ -14,15 +14,7 @@ public void OnPluginStart()
 	
 	CreateTimer(BOT_TIMED_THINK_INTERVAL, Timer_Generic, _, TIMER_REPEAT);
 	
-	InitialiseAreasArray();
-	decl String:mapName[PLATFORM_MAX_PATH];
-	if (GetCurrentMap(mapName, sizeof(mapName)) < 1) {
-		SetFailState("Failed to get map name");
-	} else if (!ParseNavOfMap(mapName)) {
-		SetFailState("Failed to parse nav for %s", mapName);
-	}
-	//ListAreas();
-	//TestNearestArea();
+	TheNavMesh.Initialize();
 }
 
 public void OnMapStart()
@@ -30,6 +22,10 @@ public void OnMapStart()
 	rayIndex = PrecacheModel("sprites/purplelaser1.spr", true);
 	if (rayIndex == 0) {
 		SetFailState("Failed to precache model");
+	}
+	
+	if (!TheNavMesh.LoadCurrentMap()) {
+		SetFailState("Failed to load nav mesh for current map; shutting down"); // TODO: shut down grafecully
 	}
 }
 

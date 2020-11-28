@@ -10,6 +10,7 @@
 #define BOT_TIMED_THINK_INTERVAL 2.0
 
 #define MAX_AREAS 1024
+#define MAX_APPROACH_AREAS 16
 
 #define MAX_AREA_MOVES_PLANNED_FOR_FUTURE 100
 
@@ -28,6 +29,17 @@
 
 #define UNDEFINED_PLACE 0 // ie: "no place"
 #define ANY_PLACE 0xFFFF
+
+// Team indices for arrays where only 2 teams are required
+// (Jinrai and NSF), so TEAM_SPECTATOR etc. don't need to be allocated.
+// Use the teamidx_to_navteamidx(...) and navteamidx_to_teamidx(...)
+// helpers to convert between these enums and actual engine team indices.
+enum {
+	NAV_TEAM_IDX_JINRAI = 0,
+	NAV_TEAM_IDX_NSF,
+	
+	NUM_NAV_TEAMS
+};
 
 enum NavDirType
 {
@@ -52,9 +64,6 @@ enum NavTraverseType {
 
 	NUM_TRAVERSE_TYPES
 };
-
-ArrayList TheNavAreaList = null;
-int num_areas_in_the_nav_list;
 
 const SDKHookType thinkHookType = SDKHook_PreThink;
 

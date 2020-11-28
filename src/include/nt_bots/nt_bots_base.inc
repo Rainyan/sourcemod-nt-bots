@@ -1,10 +1,9 @@
 #if !defined(_NT_BOTS_BASE_INC_)
 #define _NT_BOTS_BASE_INC_
 
-#include "include/nt_bots/nav_area.inc"
-#include "include/nt_bots/nav_mesh.inc"
+int num_areas_in_the_nav_list;
 
-float AreaDistance(const int id_a, const int id_b)
+stock float AreaDistance(const int id_a, const int id_b)
 {
 	NavArea a[1]; NavArea b[1];
 	if (!GetAreaById(id_a, a)) { ThrowError("Failed to get id"); }
@@ -15,29 +14,6 @@ float AreaDistance(const int id_a, const int id_b)
 	b[0].GetOrigin(pos_b);
 	
 	return GetVectorDistance(pos_a, pos_b);
-}
-
-void InitialiseAreasArray()
-{
-	// Note: ArrayList is not default initialized
-	TheNavAreaList = new ArrayList(sizeof(NavArea), MAX_AREAS);
-	
-#if(0) // Test ArrayList iteration
-	for (int i = 0; i < MAX_AREAS; ++i) {
-		NavArea dummy;
-		dummy.id = i;
-		TheNavAreaList.PushArray(dummy);
-	}
-	NavArea placeholder;
-	PrintToServer("TheNavAreaList length: %d, blocksize: %d", TheNavAreaList.Length, TheNavAreaList.BlockSize);
-	int num_total = 0;
-	for (int i = TheNavAreaList.Length - 1; i >= TheNavAreaList.Length - MAX_AREAS; --i) {
-		TheNavAreaList.GetArray(i, placeholder);
-		PrintToServer("Found NavArea at idx: %d (id value: %d)", i, placeholder.id);
-		++num_total;
-	}
-	PrintToServer("Total: %d", num_total);
-#endif
 }
 
 stock void ListAreas()
@@ -76,7 +52,7 @@ stock void ListAreas()
 	}
 }
 
-int GetPathSolution(const int start_area_id, const int target_area_id, int[] solution_path_ids,
+stock int GetPathSolution(const int start_area_id, const int target_area_id, int[] solution_path_ids,
 	const int max_solution_length = MAX_AREAS)
 {
 	NavArea start_area[1];
@@ -180,7 +156,7 @@ int GetPathSolution(const int start_area_id, const int target_area_id, int[] sol
 	return 0;
 }
 
-bool AreNeighbours(const int self_id, const int other_id)
+stock bool AreNeighbours(const int self_id, const int other_id)
 {
 	NavArea self_area[1];
 	GetAreaById(self_id, self_area);
@@ -209,7 +185,7 @@ bool AreNeighbours(const int self_id, const int other_id)
 	return false;
 }
 
-int NearestConnection(const int self_id, const int[] excludes, const int num_excludes)
+stock int NearestConnection(const int self_id, const int[] excludes, const int num_excludes)
 {
 	int nearest_connection = 0;
 	float nearest_distance = 0.0;
@@ -257,7 +233,7 @@ int NearestConnection(const int self_id, const int[] excludes, const int num_exc
 	return nearest_connection;
 }
 
-int NearestArea(const int self_id, const int[] excludes, const int num_excludes)
+stock int NearestArea(const int self_id, const int[] excludes, const int num_excludes)
 {
 	int nearest_area = 0;
 	float nearest_distance = 0.0;
@@ -300,18 +276,18 @@ stock int GetConnections(const NavArea area, int[] connections, const int max_co
 	return num_connections;
 }
 
-void AddArea(const NavArea area)
+stock void AddArea(const NavArea area)
 {
 	TheNavAreaList.PushArray(area);
 	++num_areas_in_the_nav_list;
 }
 
-int GetNumAreas()
+stock int GetNumAreas()
 {
 	return num_areas_in_the_nav_list;
 }
 
-bool GetAreaById(const int id, NavArea[1] out)
+stock bool GetAreaById(const int id, NavArea[1] out)
 {
 	NavArea area;
 	int num_iterated = 0;
@@ -325,7 +301,7 @@ bool GetAreaById(const int id, NavArea[1] out)
 	return false;
 }
 
-bool GetNearestArea(const float pos[3], NavArea[1] out_area)
+stock bool GetNearestArea(const float pos[3], NavArea[1] out_area)
 {
 	float nearest_distance = -1.0;
 	
@@ -346,7 +322,7 @@ bool GetNearestArea(const float pos[3], NavArea[1] out_area)
 	return nearest_distance != -1;
 }
 
-int GetNearestOfAreaList(const int this_area_id, const int[] area_list, const int num_areas,
+stock int GetNearestOfAreaList(const int this_area_id, const int[] area_list, const int num_areas,
 	int& nearest_array_index)
 {
 	NavArea area[1];
@@ -374,25 +350,25 @@ int GetNearestOfAreaList(const int this_area_id, const int[] area_list, const in
 
 // Is this client a bot that we want to use for bot AI?
 // Assumes a valid client index and IsClientConnected == true.
-bool IsBotClient(int client)
+stock bool IsBotClient(int client)
 {
     return client != 0 && IsFakeClient(client) && !IsClientSourceTV(client);
 }
 
 // Predicate for client position initiated ray trace.
-bool DidNotHitSelf(int self, int contentsMask, int target)
+stock bool DidNotHitSelf(int self, int contentsMask, int target)
 {
     return self != target;
 }
 
-void MultiplyVectors(const float v1[3], const float v2[3], float res[3])
+stock void MultiplyVectors(const float v1[3], const float v2[3], float res[3])
 {
     res[0] = v1[0] * v2[0];
     res[1] = v1[1] * v2[1];
     res[2] = v1[2] * v2[2];
 }
 
-bool VectorsEqual(const float[3] v1, const float[3] v2, const float max_ulps = 0.0)
+stock bool VectorsEqual(const float[3] v1, const float[3] v2, const float max_ulps = 0.0)
 {
 	// Needs to exactly equal.
 	if (max_ulps == 0) {
@@ -407,7 +383,7 @@ bool VectorsEqual(const float[3] v1, const float[3] v2, const float max_ulps = 0
 	}
 }
 
-float Lerp(float a, float b, float scale = 0.0)
+stock float Lerp(float a, float b, float scale = 0.0)
 {
     if (scale == 0) {
         scale = GetGameFrameTime();
@@ -415,7 +391,7 @@ float Lerp(float a, float b, float scale = 0.0)
     return a + (b - a) * scale;
 }
 
-bool GetPlannedPosition(float[3] pos)
+stock bool GetPlannedPosition(float[3] pos)
 {
 	if (s_movementPlanStack == -1) {
 		return false;
@@ -431,6 +407,16 @@ bool GetPlannedPosition(float[3] pos)
 	}
 	area[0].GetOrigin(pos);
 	return true;
+}
+
+stock int teamidx_to_navteamidx(const int team_index)
+{
+	return team_index == TEAM_NSF ? NAV_TEAM_IDX_NSF : NAV_TEAM_IDX_JINRAI;
+}
+
+stock int navteamidx_to_teamidx(const int bot_mesh_team_index)
+{
+	return bot_mesh_team_index == NAV_TEAM_IDX_NSF ? TEAM_NSF : TEAM_JINRAI;
 }
 
 #endif // _NT_BOTS_BASE_INC_

@@ -5,6 +5,7 @@
 #include <sdktools>
 
 #include "include/nt_bots/nt_bots_shared.inc"
+#include "include/nt_bots/extent.inc"
 #include "include/nt_bots/nav_area.inc"
 #include "include/nt_bots/nav_area_list.inc"
 #include "include/nt_bots/nt_bots_base.inc"

@@ -36,6 +36,8 @@ void TimedThink(int client)
 		return;
 	}
 	
+	//NavAreaBuildPath(this_area, target_area, 
+	
 	if (s_movementPlanStack >= 0) {
 		if (!this_area[0].IsNeighbourOf(s_movementPlan[s_movementPlanStack])) {
 			int nearest_index = -1;

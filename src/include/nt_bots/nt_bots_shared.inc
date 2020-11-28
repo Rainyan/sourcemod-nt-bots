@@ -75,6 +75,7 @@ int s_movementPlan[MAX_AREA_MOVES_PLANNED_FOR_FUTURE];
 int s_movementPlanStack = -1;
 
 int s_master_marker;
+int s_open_list_id;
 
 float s_ang[3];
 

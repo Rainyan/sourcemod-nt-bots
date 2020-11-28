@@ -126,6 +126,7 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 				
 				area.implicit_height_nw = kv.GetFloat("implicit_height", -1.0);
 				//PrintToServer("Implicit height: %f", area.implicit_height_nw);
+				
 				kv.GoBack();
 			}
 			
@@ -143,8 +144,25 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 				
 				area.implicit_height_se = kv.GetFloat("implicit_height", -1.0);
 				//PrintToServer("Implicit height: %f", area.implicit_height_se);
+				
 				kv.GoBack();
 			}
+			
+			// Set extents XYZ
+			for (int i = 0; i < 2; ++i) {
+				if (area.extents_nw_corner[i] < area.extents_se_corner[i]) {
+					area.extent.lo[i] = area.extents_nw_corner[i];
+					area.extent.hi[i] = area.extents_se_corner[i];
+				} else {
+					area.extent.lo[i] = area.extents_se_corner[i];
+					area.extent.hi[i] = area.extents_nw_corner[i];
+				}
+			}
+			area.extent.lo[2] = area.extents_nw_corner[2];
+			area.extent.hi[2] = area.extents_nw_corner[2];
+			
+			area.ne_z = area.extents_nw_corner[2];
+			area.sw_z = area.extents_se_corner[2];
 			
 			// Calculate the centroid of this area
 			AddVectors(area.extents_nw_corner, area.extents_se_corner, area.centroid);

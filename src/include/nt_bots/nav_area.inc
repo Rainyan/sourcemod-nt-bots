@@ -26,8 +26,9 @@ enum struct NavArea {
 	int connected_areas_east[MAX_AREA_CONNECTIONS];
 	int connected_areas_south[MAX_AREA_CONNECTIONS];
 	int connected_areas_west[MAX_AREA_CONNECTIONS];
-	
 	int num_connected_areas[NUM_DIRECTIONS];
+	
+	// TODO: ladders
 	
 	bool is_blocked;
 	bool is_underwater;
@@ -91,6 +92,10 @@ enum struct NavArea {
 		}
 		
 		this.num_approach_areas = 0;
+		
+		for (NavDirType dir = NORTH; dir < NUM_DIRECTIONS; ++dir) {
+			this.num_connected_areas[dir] = 0;
+		}
 	}
 	
 	void SetParent(const int parent_id, const NavTraverseType parent_how = NUM_TRAVERSE_TYPES)

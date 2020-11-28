@@ -97,6 +97,8 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 		float invalid[3] = { -123.4, -1337.0, -432.1 };
 		
 		NavArea area;
+		area.Initialize();
+		
 		decl String:areaid[16] = "area_0";
 		for (int area_i = 0; kv.JumpToKey(areaid, false);
 			Format(areaid, sizeof(areaid), "area_%d", ++area_i))

@@ -135,10 +135,13 @@ enum struct NavArea {
 		// one kill == 1.0, which we will forget about in two minutes (1.0 / 120.0)
 #define DECAY_RATE 0.008333
 		for (int i = 0; i< NUM_NAV_TEAMS; ++i) {
-			float delta_time = GetGameTime() - this.danger_timestamp[i];
-			this.danger[i] -= DECAY_RATE * delta_time;
-			if (this.danger[i] < 0) {
-				this.danger[i] = 0.0;
+			// Only bother with danger decay if the danger isn't already zeroed.
+			if (this.danger[i] != 0) {
+				float delta_time = GetGameTime() - this.danger_timestamp[i];
+				this.danger[i] -= DECAY_RATE * delta_time;
+				if (this.danger[i] < 0) {
+					this.danger[i] = 0.0;
+				}
 			}
 			this.danger_timestamp[i] = GetGameTime();
 		}

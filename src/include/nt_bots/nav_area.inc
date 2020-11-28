@@ -44,8 +44,6 @@ enum struct NavArea {
 	// so exposing that struct abstraction here, instead, to work around syntax limitations.
 	//
 	// (The "NavConnect" referred below is a union of (area id/*area); representing it as area id here.)
-	//
-	// FIXME/TODO: populate this data from the parser (it's available in the kv's)
 	// --------------------------------------------------------------------------------
 	int approach_info_navconnect_here[MAX_APPROACH_AREAS]; // the approach area
 	int approach_info_navconnect_prev[MAX_APPROACH_AREAS]; // the area just before the approach area on the path

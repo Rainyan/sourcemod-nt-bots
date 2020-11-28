@@ -214,6 +214,42 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 				}
 				kv.GoBack();
 			}
+			
+			{
+				kv.JumpToKey("approach_areas", false);
+				if (!kv.GetSectionName(section, sizeof(section))) {
+					return false;
+				}
+				//PrintToServer("Section is currently: %s", section);
+				
+				decl String:approach_area_id[16] = "area_0";
+				for (int approach_area = 0; kv.JumpToKey(approach_area_id, false);
+					Format(approach_area_id, sizeof(approach_area_id), "area_%d", ++approach_area))
+				{
+					int this_area_id = kv.GetNum("this_area_id", -1);
+					int prev_area_id = kv.GetNum("prev_area_id", -1);
+					int raw_prev_area_to_here_how_type = kv.GetNum("prev_area_to_here_how_type", -1);
+					int next_area_id = kv.GetNum("next_area_id", -1);
+					int raw_here_to_next_area_how_type = kv.GetNum("here_to_next_area_how_type", -1);
+					
+					if (raw_prev_area_to_here_how_type < 0 || raw_prev_area_to_here_how_type >= view_as<int>(NUM_TRAVERSE_TYPES)) {
+						SetFailState("Failed to get NavTraverseType: raw_prev_area_to_here_how_type");
+					}
+					if (raw_here_to_next_area_how_type < 0 || raw_here_to_next_area_how_type >= view_as<int>(NUM_TRAVERSE_TYPES)) {
+						SetFailState("Failed to get NavTraverseType: raw_here_to_next_area_how_type");
+					}
+					
+					area.approach_info_navconnect_here[approach_area] = this_area_id;
+					area.approach_info_navconnect_prev[approach_area] = prev_area_id;
+					area.approach_info_navconnect_next[approach_area] = next_area_id;
+					area.approach_info_prev_to_here_how[approach_area] = view_as<NavTraverseType>(raw_prev_area_to_here_how_type);
+					area.approach_info_here_to_next_how[approach_area] = view_as<NavTraverseType>(raw_here_to_next_area_how_type);
+					
+					kv.GoBack();
+				}
+				kv.GoBack();
+			}
+			
 			kv.GoBack();
 			
 			AddArea(area);

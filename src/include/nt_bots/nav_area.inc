@@ -85,6 +85,31 @@ enum struct NavArea {
 	// Approach areas end
 	// --------------------------------------------------------------------------------
 	
+	// --------------------------------------------------------------------------------
+	// Encounter spots start
+	// --------------------------------------------------------------------------------
+	// We can't have multidimensional enum struct fields ("SpotEncounter[MAX_ENCOUNTER_SPOTS]"),
+	// so exposing that struct abstraction here, instead, to work around syntax limitations.
+	//
+	// (The "NavConnect" referred below is a union of (area id/*area); representing it as area id here.)
+	// --------------------------------------------------------------------------------
+	int encounter_spot_navconnect_from[MAX_ENCOUNTER_SPOTS];
+	int encounter_spot_navconnect_to[MAX_ENCOUNTER_SPOTS];
+	NavDirType encounter_spot_from_dir[MAX_ENCOUNTER_SPOTS];
+	NavDirType encounter_spot_to_dir[MAX_ENCOUNTER_SPOTS];
+	// These are the "path" Ray segment from-to vectors, as individual coordinates.
+	float encounter_spot_ray_from_x[MAX_ENCOUNTER_SPOTS];
+	float encounter_spot_ray_from_y[MAX_ENCOUNTER_SPOTS];
+	float encounter_spot_ray_from_z[MAX_ENCOUNTER_SPOTS];
+	float encounter_spot_ray_to_x[MAX_ENCOUNTER_SPOTS];
+	float encounter_spot_ray_to_y[MAX_ENCOUNTER_SPOTS];
+	float encounter_spot_ray_to_z[MAX_ENCOUNTER_SPOTS];
+	// TODO: hiding spots
+	// --------------------------------------------------------------------------------
+	// Encounter spots end
+	// --------------------------------------------------------------------------------
+	
+	
 	void Initialize()
 	{
 		this.marker = 0;
@@ -168,6 +193,16 @@ enum struct NavArea {
 		}
 	}
 	
+	void AddToClosedList()
+	{
+		this.Mark();
+	}
+	
+	void UpdateOnOpenList()
+	{
+		UpdateAreaOnOpenList(this.id);
+	}
+	
 	void RemoveFromOpenList()
 	{
 		if (this.prev_open_area_id != 0) {
@@ -205,6 +240,11 @@ enum struct NavArea {
 	bool IsOpen()
 	{
 		return this.open_marker == s_master_marker;
+	}
+	
+	bool IsClosed()
+	{
+		return (this.IsMarked() && !this.IsOpen());
 	}
 	
 	bool IsOverlapping(const float[3] pos, float tolerance = 0.0)
@@ -404,7 +444,12 @@ stock void ClearSearchLists()
 	s_open_list_id = 0;
 }
 
-stock bool PopOpenList(NavArea[] out_area)
+stock bool IsOpenListEmpty()
+{
+	return s_open_list_id == 0 ? true : false;
+}
+
+stock bool PopOpenList(NavArea[1] out_area)
 {
 	if (s_open_list_id == 0) {
 		return false;
@@ -438,7 +483,7 @@ stock bool AreaIsOverlapping(const NavArea original_area, const NavArea other_ar
 stock bool AreaIsOverlappingPos(const int area_id, const float[3] pos)
 {
 	NavArea area[1];
-	if (!GetAreaById(area_id)) {
+	if (!GetAreaById(area_id, area)) {
 		return false;
 	}
 	return area[0].IsOverlapping(pos);
@@ -447,10 +492,66 @@ stock bool AreaIsOverlappingPos(const int area_id, const float[3] pos)
 stock float GetAreaZ(const int area_id, const float[3] pos)
 {
 	NavArea area[1];
-	if (!GetAreaById(area_id)) {
+	if (!GetAreaById(area_id, area)) {
 		SetFailState("Failed to get id");
 	}
 	return area[0].GetZ(pos);
+}
+
+// a smaller value has been found, update this area on the open list
+stock void UpdateAreaOnOpenList(const int area_id)
+{
+	NavArea this_area[1];
+	if (!GetAreaById(area_id, this_area)) {
+		SetFailState("Failed to get NavArea");
+	}
+	
+	while (this_area[0].prev_open_area_id != 0) {
+		NavArea other[1];
+		if (!GetAreaById(this_area[0].prev_open_area_id, other)) {
+			SetFailState("Failed to get previous NavArea");
+		}
+		
+		if (this_area[0].total_cost >= other[0].total_cost) {
+			break;
+		}
+		
+		NavArea before[1];
+		NavArea after[1];
+		
+		int before_area_id = 0;
+		int after_area_id = 0;
+		
+		if (other[0].prev_open_area_id != 0) {
+			if (!GetAreaById(other[0].prev_open_area_id, before)) {
+				SetFailState("Failed to get NavArea: before");
+			}
+			before_area_id = before[0].id;
+		}
+		
+		if (this_area[0].next_open_area_id != 0) {
+			if (!GetAreaById(this_area[0].next_open_area_id, after)) {
+				SetFailState("Failed to get NavArea: after");
+			}
+			after_area_id = after[0].id;
+		}
+		
+		this_area[0].next_open_area_id = other[0].id;
+		this_area[0].prev_open_area_id = before_area_id;
+		
+		other[0].prev_open_area_id = this_area[0].id;
+		other[0].next_open_area_id = after_area_id;
+		
+		if (before_area_id != 0) {
+			before[0].next_open_area_id = this_area[0].id;
+		} else {
+			s_open_list_id = this_area[0].id;
+		}
+		
+		if (after_area_id != 0) {
+			after[0].prev_open_area_id = other[0].id;
+		}
+	}
 }
 
 #endif // _NT_BOTS_NAV_AREA_INC_

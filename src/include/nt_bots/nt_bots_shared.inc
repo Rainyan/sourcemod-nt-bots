@@ -9,9 +9,10 @@
 
 #define BOT_TIMED_THINK_INTERVAL 2.0
 
-#define MAX_AREAS 1024
+#define MAX_AREAS 2048
 #define MAX_APPROACH_AREAS 16
-#define MAX_OVERLAPPING_AREAS MAX_AREAS // TODO: set properly
+#define MAX_OVERLAPPING_AREAS (MAX_APPROACH_AREAS * 2) // TODO: set properly
+#define MAX_ENCOUNTER_SPOTS (MAX_APPROACH_AREAS * 2) // TODO: set properly
 
 #define MAX_AREA_MOVES_PLANNED_FOR_FUTURE 100
 
@@ -55,6 +56,7 @@ new const String:nav_dir_names[NUM_DIRECTIONS][] = { "north", "east", "south", "
 
 enum NavTraverseType {
 	// NOTE: First 4 directions MUST match NavDirType
+	// (because the pathfinding does some funky type casting reliant on the ordering)
 	GO_NORTH = 0,
 	GO_EAST,
 	GO_SOUTH,
@@ -72,11 +74,42 @@ float vec3_origin[3] = { 0.0, 0.0, 0.0 };
 
 float s_targetPos[3];
 
-int s_movementPlan[MAX_AREA_MOVES_PLANNED_FOR_FUTURE];
-int s_movementPlanStack = -1;
+static int s_movementPlan[MAX_AREA_MOVES_PLANNED_FOR_FUTURE];
+static int s_movementPlanStack = -1;
 
-int s_master_marker;
-int s_open_list_id;
+void PlanMove(const int target_area_id)
+{
+	if (s_movementPlanStack >= MAX_AREA_MOVES_PLANNED_FOR_FUTURE) {
+		return;
+	}
+	s_movementPlan[++s_movementPlanStack] = target_area_id;
+}
+
+void ClearPlan()
+{
+	s_movementPlanStack = -1;
+}
+
+bool HasActivePlan()
+{
+	return s_movementPlanStack != -1;
+}
+
+int GetAreaOfPlan()
+{
+	return HasActivePlan() ? s_movementPlanStack : 0;
+}
+
+void ContinuePlan()
+{
+	--s_movementPlanStack;
+	if (s_movementPlanStack < -1) {
+		s_movementPlanStack = -1;
+	}
+}
+
+int s_master_marker = 1;
+int s_open_list_id = 0;
 
 float s_ang[3];
 

@@ -96,13 +96,13 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 		
 		float invalid[3] = { -123.4, -1337.0, -432.1 };
 		
-		NavArea area;
-		area.Initialize();
-		
 		decl String:areaid[16] = "area_0";
 		for (int area_i = 0; kv.JumpToKey(areaid, false);
 			Format(areaid, sizeof(areaid), "area_%d", ++area_i))
 		{
+			NavArea area;
+			area.Initialize();
+			
 			area.id = kv.GetNum("id", -1);
 			if (area.id == -1) {
 				SetFailState("%s :: %s: Failed to get \"id\"", section, areaid);
@@ -219,8 +219,8 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 				}
 				//PrintToServer("Section is currently: %s", section);
 				
-				decl String:spot_id[16] = "spot_0";
-				for (int spot = 0; kv.JumpToKey(spot_id, false); Format(spot_id, sizeof(spot_id), "spot_%d", ++spot)) {
+				decl String:hiding_spot_id[16] = "spot_0";
+				for (int spot = 0; kv.JumpToKey(hiding_spot_id, false); Format(hiding_spot_id, sizeof(hiding_spot_id), "spot_%d", ++spot)) {
 					//int hiding_spot_id = kv.GetNum("id", -1);
 					//int flags = kv.GetNum("flags", -1);
 					
@@ -250,6 +250,10 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 				for (int approach_area = 0; kv.JumpToKey(approach_area_id, false);
 					Format(approach_area_id, sizeof(approach_area_id), "area_%d", ++approach_area))
 				{
+					if (approach_area >= MAX_APPROACH_AREAS) {
+						SetFailState("Approach areas overflowed");
+					}
+					
 					int this_area_id = kv.GetNum("this_area_id", -1);
 					int prev_area_id = kv.GetNum("prev_area_id", -1);
 					int raw_prev_area_to_here_how_type = kv.GetNum("prev_area_to_here_how_type", -1);
@@ -276,10 +280,56 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 				kv.GoBack();
 			}
 			
+			{
+				kv.JumpToKey("encounter_spots", false);
+				if (!kv.GetSectionName(section, sizeof(section))) {
+					return false;
+				}
+				//PrintToServer("Section is currently: %s", section);
+				
+				decl String:encounter_spot_id[16] = "spot_0";
+				for (int spot = 0; kv.JumpToKey(encounter_spot_id, false);
+					Format(encounter_spot_id, sizeof(encounter_spot_id), "spot_%d", ++spot))
+				{
+					if (spot >= MAX_ENCOUNTER_SPOTS) {
+						SetFailState("Encounter spots overflowed");
+					}
+					
+					int from_area_id = kv.GetNum("from_area_id", -1);
+					int from_dir = kv.GetNum("from_dir", -1);
+					int to_area_id = kv.GetNum("to_area_id", -1);
+					int to_dir = kv.GetNum("to_dir", -1);
+					
+					if (from_dir < 0 || from_dir >= view_as<int>(NUM_DIRECTIONS)) {
+						SetFailState("Invalid from_dir: %d", from_dir);
+					} else if (to_dir < 0 || to_dir >= view_as<int>(NUM_DIRECTIONS)) {
+						SetFailState("Invalid to_dir: %d", to_dir);
+					}
+					
+					area.encounter_spot_navconnect_from[spot] = from_area_id;
+					area.encounter_spot_navconnect_to[spot] = to_area_id;
+					area.encounter_spot_from_dir[spot] = view_as<NavDirType>(from_dir);
+					area.encounter_spot_to_dir[spot] = view_as<NavDirType>(to_dir);
+					
+					// TODO: Actually implement hiding spots
+					//decl String:hiding_spots_along_this_path_id[16] = "spot_0";
+					//for (int spot_along = 0; kv.JumpToKey(hiding_spots_along_this_path_id, false);
+					//	Format(hiding_spots_along_this_path_id,
+					//	sizeof(hiding_spots_along_this_path_id), "spot_%d", ++spot_along))
+					//{
+					//	int id = kv.GetNum("id", -1); // spot ID for save/load
+					//	int t = kv.GetNum("t", -1); // parametric distance along ray where this spot first has LOS to our path
+					//	
+					//	kv.GoBack();
+					//}
+					
+					kv.GoBack();
+				}
+			}
+			
 			kv.GoBack();
 			
 			AddArea(area);
-			area.Empty();
 		}
 	}
 	

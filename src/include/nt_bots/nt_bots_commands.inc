@@ -17,7 +17,7 @@ public Action Cmd_OrderPos(int client, int argc)
 				xyz[coord] = StringToFloat(arg);
 			}
 		}
-		s_movementPlanStack = -1;
+		ClearPlan();
 		s_targetPos = xyz;
 	} else {
 		if (client == 0) {
@@ -47,7 +47,7 @@ none to raycast from position.", BOTS_MSG_PREFIX);
 		}
 	}
 	
-	s_movementPlanStack = -1;
+	ClearPlan();
 	s_targetPos = xyz;
 	
 	ReplyToCommand(client, "%s Moving to %f, %f, %f", BOTS_MSG_PREFIX,

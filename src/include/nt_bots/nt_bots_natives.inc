@@ -24,8 +24,20 @@ public void OnMapStart()
 		SetFailState("Failed to precache model");
 	}
 	
+//#define NT_BOTS_KV_LOAD_DEBUG
+#if defined(NT_BOTS_KV_LOAD_DEBUG)
+	float start_time = GetGameTime();
+	PrintToServer("Loading nav mesh...");
+#endif
+	
 	if (!TheNavMesh.LoadCurrentMap()) {
 		SetFailState("Failed to load nav mesh for current map; shutting down"); // TODO: shut down grafecully
+	} else {
+#if defined(NT_BOTS_KV_LOAD_DEBUG)
+		float delta_time = GetGameTime() - start_time;
+		PrintToServer("Loaded nav mesh in approx. %f seconds:", delta_time);
+		ListAreas();
+#endif
 	}
 }
 

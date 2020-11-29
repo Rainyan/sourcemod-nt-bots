@@ -1,7 +1,7 @@
 #if !defined(_NT_BOTS_BASE_INC_)
 #define _NT_BOTS_BASE_INC_
 
-int num_areas_in_the_nav_list;
+static int num_areas_in_the_nav_list;
 
 stock float AreaDistance(const int id_a, const int id_b)
 {
@@ -19,12 +19,10 @@ stock void ListAreas()
 	for (int i = TheNavAreaList.Length - 1; num_iterated++ < GetNumAreas(); --i) {
 		TheNavAreaList.GetArray(i, area);
 		PrintToServer("= = = = = = = = = = = = = = = = = = = =\nFound NavArea at idx: %d (id value: %d)", i, area.id);
-		float origin[3];
-		area.GetCentroid(origin);
-		PrintToServer("XY bounds: [ NW %f %f -  SE %f %f ], and origin: %f %f %f)",
+		PrintToServer("XY bounds: [ NW %f %f -  SE %f %f ], and area.centroid: %f %f %f)",
 			area.extents_nw_corner[0], area.extents_nw_corner[1],
 			area.extents_se_corner[0], area.extents_se_corner[1],
-			origin[0], origin[1], origin[2]);
+			area.centroid[0], area.centroid[1], area.centroid[2]);
 		
 		for (NavDirType dir = NORTH; dir < NUM_DIRECTIONS; ++dir) {
 			for (int j = 0; j < area.num_connected_areas[dir]; ++j) {
@@ -36,10 +34,10 @@ stock void ListAreas()
 				int connection = -1;
 				switch (dir)
 				{
-					case DIR_NORTH: { connection = area.connected_areas_north[j]; }
-					case DIR_EAST: { connection = area.connected_areas_east[j]; }
-					case DIR_SOUTH: { connection = area.connected_areas_south[j]; }
-					case DIR_WEST: { connection = area.connected_areas_west[j]; }
+					case NORTH: { connection = area.connected_areas_north[j]; }
+					case EAST: { connection = area.connected_areas_east[j]; }
+					case SOUTH: { connection = area.connected_areas_south[j]; }
+					case WEST: { connection = area.connected_areas_west[j]; }
 				}
 				PrintToServer("\t-- NavArea %d has %sern connection: %d",
 					area.id, nav_dir_names[dir], connection);
@@ -278,16 +276,22 @@ stock void AddArea(const NavArea area)
 	++num_areas_in_the_nav_list;
 }
 
+stock void ClearNumAreasInNavList()
+{
+	num_areas_in_the_nav_list = 0;
+}
+
 stock bool BuildOverlapList()
 {
-	for (int i = 0; i < num_areas_in_the_nav_list; ++i) {
+	for (int i = 0; i < GetNumAreas(); ++i) {
 		NavArea area_a;
 		TheNavAreaList.GetArray(i, area_a);
-		for (int j = 0; i < num_areas_in_the_nav_list; ++j) {
+		for (int j = 0; j < GetNumAreas(); ++j) {
 			if (i == j) {
 				continue;
 			}
 			NavArea area_b;
+			//PrintToServer("Trying i: %d, j: %d, and num_areas_in_the_nav_list: %d", i, j, GetNumAreas());
 			TheNavAreaList.GetArray(j, area_b);
 			if (AreaIsOverlapping(area_a, area_b)) {
 				if (!AddOverlappingArea(area_a, area_b)) {

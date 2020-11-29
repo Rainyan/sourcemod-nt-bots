@@ -81,16 +81,13 @@ int DecideVelocity(int client, float vel[3])
 	GetClientAbsOrigin(client, _pos[client]);
 	AddVectors(_pos[client], _pos_offset, _pos[client]);
 	
-	if (s_movementPlanStack == -1) {
-		return 0;
-	}
-	
-	if (s_movementPlan[s_movementPlanStack] == 0) {
+	if (!HasActivePlan()) {
 		return 0;
 	}
 	
 	NavArea planned_area[1];
-	if (!GetAreaById(s_movementPlan[s_movementPlanStack], planned_area)) {
+	if (!GetAreaById(GetAreaOfPlan(), planned_area)) {
+		SetFailState("Failed to get plan");
 		return 0;
 	}
 	
@@ -157,9 +154,7 @@ int DecideVelocity(int client, float vel[3])
 		color[1] = 100;
 		color[2] = 75;
 		
-		if (s_movementPlanStack >= 0) {
-			--s_movementPlanStack;
-		}
+		ContinuePlan();
 	} else if (isStuck) {
 		color[0] = 100;
 		color[1] = 100;

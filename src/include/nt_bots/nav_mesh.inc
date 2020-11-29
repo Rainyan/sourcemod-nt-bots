@@ -24,13 +24,14 @@ enum struct NavMesh {
 			++num_total;
 		}
 		PrintToServer("Total: %d", num_total);
+		this.DestroyNavigationMesh();
 #endif
 	}
 	
 	void DestroyNavigationMesh()
 	{
 		TheNavAreaList.Clear();
-		num_areas_in_the_nav_list = 0;
+		ClearNumAreasInNavList();
 	}
 	
 	bool LoadCurrentMap()

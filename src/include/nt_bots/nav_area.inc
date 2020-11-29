@@ -34,6 +34,9 @@ enum struct NavArea {
 	int connected_areas_west[MAX_AREA_CONNECTIONS];
 	int num_connected_areas[NUM_DIRECTIONS];
 	
+	int overlapping_area_ids[MAX_OVERLAPPING_AREAS];
+	int num_overlapping_areas;
+	
 	// TODO: ladders
 	
 	bool is_blocked; // TODO
@@ -102,6 +105,8 @@ enum struct NavArea {
 		for (NavDirType dir = NORTH; dir < NUM_DIRECTIONS; ++dir) {
 			this.num_connected_areas[dir] = 0;
 		}
+		
+		this.num_overlapping_areas = 0;
 	}
 	
 	void SetParent(const int parent_id, const NavTraverseType parent_how = NUM_TRAVERSE_TYPES)
@@ -217,9 +222,38 @@ enum struct NavArea {
 			return false;
 		}
 		
-		//float my_z = 
+		// check that that the point is above us, but not above any areas that overlap us
+		float my_z = this.GetZ(pos);
+		if (my_z > pos[2]) {
+			return false;
+		}
 		
-		return false;
+		for (int i = 0; i < this.num_overlapping_areas; ++i) {
+			int overlapping_area_id = this.overlapping_area_ids[i];
+			
+			if (overlapping_area_id == 0) {
+				SetFailState("overlapping_area_id == 0 at index %d", i);
+			} else if (overlapping_area_id == this.id) {
+				SetFailState("area id %d contained itself as overlapping area id", this.id);
+			}
+			
+			// check 2D overlap
+			if (!AreaIsOverlappingPos(overlapping_area_id, pos)) {
+				continue;
+			}
+			
+			// is point above this iter area's z?
+			float iter_area_z = GetAreaZ(overlapping_area_id, pos);
+			if (iter_area_z > pos[2]) {
+				continue;
+			}
+			
+			if (iter_area_z > my_z) {
+				// we are below an area that is beneath the given position
+				return false;
+			}
+		}
+		return true;
 	}
 	
 	// Return Z of area at (x,y) of 'pos'
@@ -227,9 +261,21 @@ enum struct NavArea {
 	// NOTE: pos->z is not used.
 	float GetZ(const float[3] pos)
 	{
-		//float delta_x = this.m
+		float delta_x = this.extent.hi[0] - this.extent.lo[0];
+		float delta_y = this.extent.hi[1] - this.extent.lo[1];
 		
-		return 0.0;
+		// guard against division by zero due to degenerate areas
+		if (delta_x == 0 || delta_y == 0) {
+			return this.ne_z;
+		}
+		
+		float u = fclamp(((pos[0] - this.extent.lo[0]) / delta_x), 0.0, 1.0);
+		float v = fclamp(((pos[1] - this.extent.lo[1]) / delta_y), 0.0, 1.0);
+		
+		float north_z = this.extent.lo[2] + u * (this.ne_z - this.extent.lo[2]);
+		float south_z = this.sw_z + u * (this.extent.hi[2] - this.sw_z);
+		
+		return north_z + v * (south_z - north_z);
 	}
 	
 #if(0)
@@ -358,7 +404,7 @@ stock void ClearSearchLists()
 	s_open_list_id = 0;
 }
 
-bool PopOpenList(NavArea[] out_area)
+stock bool PopOpenList(NavArea[] out_area)
 {
 	if (s_open_list_id == 0) {
 		return false;
@@ -370,6 +416,41 @@ bool PopOpenList(NavArea[] out_area)
 	
 	out_area[0].RemoveFromOpenList();
 	return true;
+}
+
+stock bool AddOverlappingArea(const NavArea area_to_add_into, const NavArea overlapping_area)
+{	
+	if (area_to_add_into.num_overlapping_areas >= MAX_OVERLAPPING_AREAS) {
+		return false;
+	}
+	area_to_add_into.overlapping_area_ids[area_to_add_into.num_overlapping_areas++] = overlapping_area.id;
+	return true;
+}
+
+stock bool AreaIsOverlapping(const NavArea original_area, const NavArea other_area)
+{
+	return (other_area.extent.lo[0] < original_area.extent.hi[0] &&
+		other_area.extent.hi[0] > original_area.extent.lo[0] &&
+		other_area.extent.lo[1] < original_area.extent.hi[1] &&
+		other_area.extent.hi[1] > original_area.extent.lo[1]);
+}
+
+stock bool AreaIsOverlappingPos(const int area_id, const float[3] pos)
+{
+	NavArea area[1];
+	if (!GetAreaById(area_id)) {
+		return false;
+	}
+	return area[0].IsOverlapping(pos);
+}
+
+stock float GetAreaZ(const int area_id, const float[3] pos)
+{
+	NavArea area[1];
+	if (!GetAreaById(area_id)) {
+		SetFailState("Failed to get id");
+	}
+	return area[0].GetZ(pos);
 }
 
 #endif // _NT_BOTS_NAV_AREA_INC_

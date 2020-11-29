@@ -278,6 +278,27 @@ stock void AddArea(const NavArea area)
 	++num_areas_in_the_nav_list;
 }
 
+stock bool BuildOverlapList()
+{
+	for (int i = 0; i < num_areas_in_the_nav_list; ++i) {
+		NavArea area_a;
+		TheNavAreaList.GetArray(i, area_a);
+		for (int j = 0; i < num_areas_in_the_nav_list; ++j) {
+			if (i == j) {
+				continue;
+			}
+			NavArea area_b;
+			TheNavAreaList.GetArray(j, area_b);
+			if (AreaIsOverlapping(area_a, area_b)) {
+				if (!AddOverlappingArea(area_a, area_b)) {
+					return false;
+				}
+			}
+		}
+	}
+	return true;
+}
+
 stock int GetNumAreas()
 {
 	return num_areas_in_the_nav_list;
@@ -285,6 +306,10 @@ stock int GetNumAreas()
 
 stock bool GetAreaById(const int id, NavArea[1] out)
 {
+	if (id <= 0) {
+		ThrowError("Requested invalid area id: %d", id);
+	}
+	
 	NavArea area;
 	int num_iterated = 0;
 	for (int i = TheNavAreaList.Length - 1; num_iterated++ < GetNumAreas(); --i) {
@@ -412,6 +437,21 @@ stock int teamidx_to_navteamidx(const int team_index)
 stock int navteamidx_to_teamidx(const int bot_mesh_team_index)
 {
 	return bot_mesh_team_index == NAV_TEAM_IDX_NSF ? TEAM_NSF : TEAM_JINRAI;
+}
+
+stock float fmin(const float a, const float b)
+{
+	return a < b ? a : b;
+}
+
+stock float fmax(const float a, const float b)
+{
+	return a > b ? a : b;
+}
+
+stock float fclamp(const float value, const float min, const float max)
+{
+	return fmax(fmin(value, min), max);
 }
 
 #endif // _NT_BOTS_BASE_INC_

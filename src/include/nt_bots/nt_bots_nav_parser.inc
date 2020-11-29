@@ -283,6 +283,10 @@ bool ParseNavFile(const KeyValues& kv, const char[] bspPath)
 		}
 	}
 	
+	if (!BuildOverlapList()) {
+		SetFailState("Failed to build overlap list");
+	}
+	
 	return true;
 }
 #endif // _NT_BOTS_NAV_PARSER_INC_

@@ -40,7 +40,7 @@ float ShortestPathCost(const NavArea area, const int from_area_id /*, const NavL
  * If 'goalPos' is NULL, will use the center of 'goalArea' as the goal position.
  * Returns true if a path exists.
  */
-bool NavAreaBuildPath(const NavArea start_area, const int goal_area_id = 0, int closest_area_id = 0,
+bool NavAreaBuildPath(const NavArea start_area, const int goal_area_id = 0, int& closest_area_id = 0,
 	const float goal_pos_x = 0.0, const float goal_pos_y = 0.0, const float goal_pos_z = 0.0)
 {
 	// if we are already in the goal area, build trivial path
@@ -82,15 +82,12 @@ bool NavAreaBuildPath(const NavArea start_area, const int goal_area_id = 0, int 
 	float goal_pos[3] = { goal_pos_x, goal_pos_y, goal_pos_z };
 	bool had_goal_pos = (!(VectorsEqual(goal_pos, vec3_origin)));
 	
+	// pathfinding
 	while (s_open_list_id != 0) {
 		// get next area to check
 		NavArea iter_area[1];
 		if (!PopOpenList(iter_area)) {
 			return false;
-		}
-		
-		if (iter_area[0].id == 0) {
-			SetFailState("Invalid NavArea id");
 		}
 		
 		// don't consider blocked areas
@@ -102,8 +99,11 @@ bool NavAreaBuildPath(const NavArea start_area, const int goal_area_id = 0, int 
 		if ((iter_area[0].id == goal_area_id) ||
 			(goal_area_id == 0 && had_goal_pos && iter_area[0].Contains(goal_pos)))
 		{
-			
+			closest_area_id = iter_area[0].id;
+			return true;
 		}
+		
+		// TODO
 	}
 	
 	return false;

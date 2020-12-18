@@ -5,6 +5,8 @@
 
 public void OnPluginStart()
 {
+	RegConsoleCmd("setclass", Cmd_SetClass);
+	
 	server_tick_rate = RoundToNearest(1 / GetTickInterval());
 	
 	if (!HookEventEx("player_spawn", OnPlayerSpawn, EventHookMode_Post)) {
@@ -45,6 +47,18 @@ public void OnPluginStart()
 	
 	g_cMaxSpinSpeed = CreateConVar("sm_nt_bots_max_spin_speed", "1.0", "Absolute maximum speed scaler for how fast the bot can spin around. Set to 0 to disable limiting.",
 		_, true, 0.0, true, 1.0);
+	
+	g_cBotClass = FindConVar("bot_class");
+	if (g_cBotClass == null) {
+		SetFailState("Failed to find native cvar bot_class");
+	}
+}
+
+public Action Cmd_SetClass(int client, int args)
+{
+	PrintToServer("FIRED");
+	
+	return Plugin_Continue;
 }
 
 public void OnConfigsExecuted()
@@ -59,14 +73,6 @@ public void OnMapStart()
 	rayIndex = PrecacheModel("sprites/purplelaser1.spr", true);
 	if (rayIndex == 0) {
 		SetFailState("Failed to precache model");
-	}
-	
-	for (int i = 0; i < sizeof(bot_player_models); ++i) {
-		for (int j = 0; j < sizeof(bot_player_models[]); ++j) {
-			if (!PrecacheModel(bot_player_models[i][j], true)) {
-				SetFailState("Failed to precache bot model: \"%s\"", bot_player_models[i][j]);
-			}
-		}
 	}
 	
 	CreateTimer(BOT_TIMED_THINK_INTERVAL, Timer_Generic, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
@@ -116,40 +122,42 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse,
 	int& cmdnum, int& tickcount, int& seed, int mouse[2])
 {
 	if (IsBotClient(client) && GetClientTeam(client) > TEAM_SPECTATOR && IsPlayerAlive(client)) {
-		bool is_stuck = CheckIfStuck(client);
-		
-		float next_angles[3];
-		buttons |= DecideAngles(client, is_stuck, next_angles);
-		//PrintToServer("LERP: %f", g_cMaxSpinSpeed.FloatValue);
-		if (g_cMaxSpinSpeed.IntValue != 0) {
-			VectorLerp(prev_angles[client], next_angles, angles, g_cMaxSpinSpeed.FloatValue);
-		}
-		//PrintToServer("Lerping %f %f %f --> %f %f %f == %f %f %f",
-		//	prev_angles[client][0],
-		//	prev_angles[client][1],
-		//	prev_angles[client][2],
-		//	next_angles[0],
-		//	next_angles[1],
-		//	next_angles[2],
-		//	angles[0],
-		//	angles[1],
-		//	angles[2]);
-		
-		prev_angles[client] = angles;
-		
-		if (IsBotThinkFrame(client)) {
-			buttons |= g_cBitsOverride.IntValue;
-			prev_buttons[client] = buttons;
+		if (bot_can_think[client]) {
+			bool is_stuck = CheckIfStuck(client);
 			
-			if (HasActivePlan(client)) {
-				buttons |= DecideVelocity(client, is_stuck, angles, vel);
+			float next_angles[3];
+			buttons |= DecideAngles(client, is_stuck, next_angles);
+			//PrintToServer("LERP: %f", g_cMaxSpinSpeed.FloatValue);
+			if (g_cMaxSpinSpeed.IntValue != 0) {
+				VectorLerp(prev_angles[client], next_angles, angles, g_cMaxSpinSpeed.FloatValue);
 			}
+			//PrintToServer("Lerping %f %f %f --> %f %f %f == %f %f %f",
+			//	prev_angles[client][0],
+			//	prev_angles[client][1],
+			//	prev_angles[client][2],
+			//	next_angles[0],
+			//	next_angles[1],
+			//	next_angles[2],
+			//	angles[0],
+			//	angles[1],
+			//	angles[2]);
 			
-			prev_vel[client] = vel;
-		}
-		else {
-			buttons |= prev_buttons[client];
-			vel = prev_vel[client];
+			prev_angles[client] = angles;
+			
+			if (IsBotThinkFrame(client)) {
+				buttons |= g_cBitsOverride.IntValue;
+				prev_buttons[client] = buttons;
+				
+				if (HasActivePlan(client)) {
+					buttons |= DecideVelocity(client, is_stuck, angles, vel);
+				}
+				
+				prev_vel[client] = vel;
+			}
+			else {
+				buttons |= prev_buttons[client];
+				vel = prev_vel[client];
+			}
 		}
 	}
 	
@@ -163,6 +171,9 @@ public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 			MakePlan(client);
 		}
 	}
+	
+	SetRandomSeed(GetGameTickCount());
+	g_cBotClass.SetInt(GetRandomInt(CLASS_RECON, CLASS_SUPPORT), true, false);
 }
 
 public void OnPlayerSpawn(Event event, const char[] name, bool dontBroadcast)
@@ -172,9 +183,10 @@ public void OnPlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 	
 	if (client != 0 && IsBotClient(client)) {
 		pre_health[client] = 100;
+		bot_can_think[client] = false;
 		
-		CreateTimer(1.0, Timer_ChooseClass, userid, TIMER_FLAG_NO_MAPCHANGE);
-		CreateTimer(3.0, Timer_ChooseWeapons, userid, TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(1.0, Timer_ChooseWeapons, userid, TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(14.0, Timer_FreeToThink, userid, TIMER_FLAG_NO_MAPCHANGE);
 	}
 }
 
@@ -216,18 +228,6 @@ public Action OnPlayerHurt(Event event, const char[] name, bool dontBroadcast)
 	return Plugin_Continue;
 }
 
-public Action Timer_ChooseClass(Handle timer, int userid)
-{
-	int client = GetClientOfUserId(userid);
-	if (client != 0) {
-		SetRandomSeed(GetGameTickCount() + userid);
-		int new_class = GetRandomInt(CLASS_RECON, CLASS_SUPPORT);
-		SetPlayerClass(client, new_class);
-		UpdatePlayerModel(client, GetClientTeam(client), new_class);
-	}
-	return Plugin_Stop;
-}
-
 public Action Timer_ChooseWeapons(Handle timer, int userid)
 {
 	int client = GetClientOfUserId(userid);
@@ -250,15 +250,11 @@ public Action Timer_ChooseWeapons(Handle timer, int userid)
 	return Plugin_Stop;
 }
 
-void UpdatePlayerModel(int client, int team, int new_class)
+public Action Timer_FreeToThink(Handle timer, int userid)
 {
-	int team_index = (team == TEAM_JINRAI) ? 0 : 1;
-	int model_index;
-	switch (new_class) {
-		case CLASS_RECON: model_index = 0;
-		case CLASS_ASSAULT: model_index = 1;
-		case CLASS_SUPPORT: model_index = 2;
+	int client = GetClientOfUserId(userid);
+	if (client != 0) {
+		bot_can_think[client] = true;
 	}
-	
-	SetEntityModel(client, bot_player_models[team_index][model_index]);
+	return Plugin_Stop;
 }

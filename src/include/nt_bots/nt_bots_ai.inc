@@ -160,7 +160,7 @@ int DecideVelocity(int client, bool is_stuck, const float aim_ang[3], float vel[
 	NormalizeVector(vel, vel);
 	ScaleVector(vel, 1000.0);
 	
-#if(0)
+#if(1)
 	TE_SetupBeamPoints(client_pos, planned_pos, rayIndex, rayIndex,
 		0, 1, 1.0, 2.0, 2.5, 5, 1.0, ray_color, 5);
 	TE_SendToAll();
@@ -271,6 +271,9 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 			int current_ammo = GetEntProp(weapon, Prop_Send, "m_iClip1");
 			int total_ammo = GetWeaponAmmo(client, GetAmmoType(weapon));
 			
+			float eye_pos[3]; float eye_dir[3];
+			GetClientEyePosition(client, eye_pos);
+			
 			if (current_ammo > 0) {
 				//PrintToChatAll("Current ammo: %d", current_ammo);
 				if (last_seen_client != -1 && (time_now - last_spotted_time) < g_cForgetEnemyTime.FloatValue) {
@@ -282,33 +285,8 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 						
 						is_stuck = false;
 						
-						float eye_pos[3]; float eye_dir[3];
-						GetClientEyePosition(client, eye_pos);
-						
 						SubtractVectors(_enemy_positions[client][last_seen_client], eye_pos, eye_dir);
 						GetVectorAngles(eye_dir, perfect_angles[client]);
-						
-						SetRandomSeed(GetGameTickCount() + 1);
-						angles[0] + GetRandomFloat(-g_cAimInaccuracy.FloatValue, g_cAimInaccuracy.FloatValue);
-						SetRandomSeed(GetGameTickCount() + 2);
-						angles[1] = GetRandomFloat(-g_cAimInaccuracy.FloatValue, g_cAimInaccuracy.FloatValue);
-						
-						float scale = g_cBotAimSpeed.FloatValue * GetTickInterval();
-						if (last_seen_client == -1) {
-							SetFailState("Enemy index was -1");
-						}
-						// If enemy is cloaked, and we don't have a strong vision mode, add some delay to tracking aim.
-						if (IsCloaked(last_seen_client)) {
-							switch (GetPlayerClass(client)) {
-								case CLASS_RECON: scale *= 1.5;
-								case CLASS_SUPPORT: scale *= 2;
-							}
-						}
-						
-						angles[0] = Lerp(previous_aim[client][0], perfect_angles[client][0], scale);
-						angles[1] = Lerp(previous_aim[client][1], perfect_angles[client][1], scale);
-						previous_aim[client][0] = angles[0];
-						previous_aim[client][1] = angles[1];
 						
 	#if(0)
 						float ray_pos[3];
@@ -348,6 +326,12 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 					if (IsCloaked(client) && GetEntPropFloat(client, Prop_Send, "m_fThermopticNRG") < 5) {
 						SetEntProp(client, Prop_Send, "m_iThermoptic", 0);
 					}
+					
+					float planned_pos[3];
+					if (GetPlannedPosition(client, planned_pos)) {
+						SubtractVectors(planned_pos, eye_pos, eye_dir);
+						GetVectorAngles(eye_dir, perfect_angles[client]);
+					}
 				}
 			}
 			else {
@@ -382,6 +366,27 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 					}
 				}
 			}
+			
+			SetRandomSeed(GetGameTickCount() + 1);
+			angles[0] = perfect_angles[client][0] + GetRandomFloat(-g_cAimInaccuracy.FloatValue, g_cAimInaccuracy.FloatValue);
+			SetRandomSeed(GetGameTickCount() + 2);
+			angles[1] = perfect_angles[client][1] + GetRandomFloat(-g_cAimInaccuracy.FloatValue, g_cAimInaccuracy.FloatValue);
+			
+			float scale = g_cBotAimSpeed.FloatValue * GetTickInterval();
+			if (last_seen_client != -1) {
+				// If enemy is cloaked, and we don't have a strong vision mode, add some delay to tracking aim.
+				if (IsCloaked(last_seen_client)) {
+					switch (GetPlayerClass(client)) {
+						case CLASS_RECON: scale *= 1.5;
+						case CLASS_SUPPORT: scale *= 2;
+					}
+				}
+			}
+			
+			angles[0] = Lerp(previous_aim[client][0], perfect_angles[client][0], scale);
+			angles[1] = Lerp(previous_aim[client][1], perfect_angles[client][1], scale);
+			previous_aim[client][0] = angles[0];
+			previous_aim[client][1] = angles[1];
 		}
 	}
 	

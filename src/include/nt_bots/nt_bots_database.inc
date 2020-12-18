@@ -22,7 +22,7 @@ void ConnectToDatabase()
 public void Cb_GetSolution(Database db, DBResultSet results, const char[] error, DataPack data)
 {
 	data.Reset();
-	int bot_client = data.ReadCell();
+	int bot_client = GetClientOfUserId(data.ReadCell());
 	float pos_from[3];
 	float pos_to[3];
 	pos_from[0] = data.ReadFloat();
@@ -32,6 +32,10 @@ public void Cb_GetSolution(Database db, DBResultSet results, const char[] error,
 	pos_to[1] = data.ReadFloat();
 	pos_to[2] = data.ReadFloat();
 	delete data;
+	
+	if (bot_client == 0) {
+		return;
+	}
 	
 	if (results == null) {
 		SetFailState("Cb_GetSolution error: %s", error);
@@ -117,7 +121,7 @@ to_area_z = %.1f;";
 	//}
 	
 	DataPack data = new DataPack();
-	data.WriteCell(bot_client);
+	data.WriteCell(GetClientUserId(bot_client));
 	data.WriteFloat(pos_from[0]);
 	data.WriteFloat(pos_from[1]);
 	data.WriteFloat(pos_from[2]);

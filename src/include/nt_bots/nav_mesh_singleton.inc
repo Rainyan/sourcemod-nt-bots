@@ -1,6 +1,0 @@
-#if !defined(_NT_BOTS_THE_NAV_MESH_SINGLETON_INC_)
-#define _NT_BOTS_THE_NAV_MESH_SINGLETON_INC_
-
-NavMesh TheNavMesh; // singleton
-
-#endif // _NT_BOTS_THE_NAV_MESH_SINGLETON_INC_

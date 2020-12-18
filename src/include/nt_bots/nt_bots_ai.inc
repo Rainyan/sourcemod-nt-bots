@@ -3,8 +3,8 @@
 #endif
 #define _NT_BOTS_AI_INC_
 
-static float _enemy_positions[NEO_MAX_PLAYERS+1][NEO_MAX_PLAYERS+1][3];
-static float _enemy_last_spotted_time[NEO_MAX_PLAYERS+1][NEO_MAX_PLAYERS+1];
+static float _enemy_positions[NEO_MAX_PLAYERS + 1][NEO_MAX_PLAYERS + 1][3];
+static float _enemy_last_spotted_time[NEO_MAX_PLAYERS + 1][NEO_MAX_PLAYERS+1];
 
 enum StuckDir {
 	STUCK_DIR_NONE,
@@ -72,9 +72,9 @@ public void ThinkHook(int client)
 	}
 }
 
-static float lastPos[3];
-static int lastStuckTraceTime;
-static int _num_cycles_stuck;
+static float lastPos[NEO_MAX_PLAYERS + 1][3];
+static int lastStuckTraceTime[NEO_MAX_PLAYERS + 1];
+static int _num_cycles_stuck[NEO_MAX_PLAYERS + 1];
 
 bool CheckIfStuck(int client)
 {
@@ -83,21 +83,21 @@ bool CheckIfStuck(int client)
 	GetClientAbsAngles(client, currentAng);
 	
 	float result = 0.0;
-	if (GetVectorLength(lastPos) != 0) {
-		result = GetVectorDistance(lastPos, currentPos);
+	if (GetVectorLength(lastPos[client]) != 0) {
+		result = GetVectorDistance(lastPos[client], currentPos);
 	}
-	lastPos = currentPos;
+	lastPos[client] = currentPos;
 	
 	// Are we not moving enough?
 	if (result < 0.5) {
-		++_num_cycles_stuck;
+		++_num_cycles_stuck[client];
 		return true;
 	}
 	
 	int thisTime = GetTime();
-	int deltaTime = thisTime - lastStuckTraceTime;
+	int deltaTime = thisTime - lastStuckTraceTime[client];
 	if (deltaTime > 10) {
-		lastStuckTraceTime = thisTime;
+		lastStuckTraceTime[client] = thisTime;
 		
 		float xyz[3];
 		TR_TraceRayFilter(currentPos, currentAng, MASK_OPAQUE,
@@ -113,31 +113,31 @@ bool CheckIfStuck(int client)
 		}
 	}
 	
-	if (_num_cycles_stuck > 0) {
-		--_num_cycles_stuck;
+	if (_num_cycles_stuck[client] > 0) {
+		--_num_cycles_stuck[client];
 	}
 	return false;
 }
 
-int GetNumCyclesStuck()
+int GetNumCyclesStuck(int client)
 {
-	return _num_cycles_stuck;
+	return _num_cycles_stuck[client];
 }
 
 int DecideVelocity(int client, bool is_stuck, const float aim_ang[3], float vel[3])
 {
 	int buttons = 0;
 	
-	if (!HasActivePlan()) {
+	if (!HasActivePlan(client)) {
 		SetFailState("DecideVelocity: No plan");
 	}
 	else if (IsNearPlannedPosition(client)) {
-		ContinuePlan();
+		ContinuePlan(client);
 		return buttons;
 	}
 	
 	float planned_pos[3];
-	if (!GetPlannedPosition(planned_pos)) {
+	if (!GetPlannedPosition(client, planned_pos)) {
 		return buttons;
 	}
 	
@@ -167,7 +167,7 @@ int DecideVelocity(int client, bool is_stuck, const float aim_ang[3], float vel[
 #endif
 	
 	if (is_stuck) {
-		int num_cycles_stuck = GetNumCyclesStuck();
+		int num_cycles_stuck = GetNumCyclesStuck(client);
 		
 		float randX = 1.0;
 		float randY = 1.0;
@@ -221,8 +221,8 @@ int DecideVelocity(int client, bool is_stuck, const float aim_ang[3], float vel[
 
 static float last_spotted[NEO_MAX_PLAYERS + 1];
 
-static float previous_aim[3];
-static float perfect_angles[3];
+static float previous_aim[NEO_MAX_PLAYERS + 1][3];
+static float perfect_angles[NEO_MAX_PLAYERS + 1][3];
 
 int DecideAngles(int client, bool& is_stuck, float[3] angles)
 {
@@ -286,7 +286,7 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 						GetClientEyePosition(client, eye_pos);
 						
 						SubtractVectors(_enemy_positions[client][last_seen_client], eye_pos, eye_dir);
-						GetVectorAngles(eye_dir, perfect_angles);
+						GetVectorAngles(eye_dir, perfect_angles[client]);
 						
 						SetRandomSeed(GetGameTickCount() + 1);
 						angles[0] + GetRandomFloat(-g_cAimInaccuracy.FloatValue, g_cAimInaccuracy.FloatValue);
@@ -305,10 +305,10 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 							}
 						}
 						
-						angles[0] = Lerp(previous_aim[0], perfect_angles[0], scale);
-						angles[1] = Lerp(previous_aim[1], perfect_angles[1], scale);
-						previous_aim[0] = angles[0];
-						previous_aim[1] = angles[1];
+						angles[0] = Lerp(previous_aim[client][0], perfect_angles[client][0], scale);
+						angles[1] = Lerp(previous_aim[client][1], perfect_angles[client][1], scale);
+						previous_aim[client][0] = angles[0];
+						previous_aim[client][1] = angles[1];
 						
 	#if(0)
 						float ray_pos[3];
@@ -387,7 +387,7 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 	
 	if (is_stuck) {
 		static float rotate = 0.0;
-		int num_cycles_stuck = GetNumCyclesStuck();
+		int num_cycles_stuck = GetNumCyclesStuck(client);
 		SetRandomSeed(GetGameTickCount() + num_cycles_stuck);
 		rotate += ((GetRandomInt(0, 1) == 0) ? 1 : -1) * (0.001 * num_cycles_stuck);
 		if (rotate >= 360) {
@@ -482,9 +482,9 @@ bool IsBotThinkFrame(int client)
 	return false;
 }
 
-static float s_movementPlan[MAX_AREA_MOVES_PLANNED_FOR_FUTURE][3];
-static int s_movementPlanWriteStack = -1;
-static int s_movementPlanReadStack = 0;
+static float s_movementPlan[NEO_MAX_PLAYERS + 1][MAX_AREA_MOVES_PLANNED_FOR_FUTURE][3];
+static int s_movementPlanWriteStack[NEO_MAX_PLAYERS + 1] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+static int s_movementPlanReadStack[NEO_MAX_PLAYERS + 1] = { 0 };
 static int bot_clients_head;
 
 bool IsNearPlannedPosition(int client)
@@ -493,60 +493,60 @@ bool IsNearPlannedPosition(int client)
 	GetClientAbsOrigin(client, pos);
 	
 	float planned_pos[3];
-	if (!GetPlannedPosition(planned_pos)) {
+	if (!GetPlannedPosition(client, planned_pos)) {
 		return false;
 	}
 	
 	return GetVectorDistance(pos, planned_pos) <= BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE;
 }
 
-bool GetPlannedPosition(float[3] out_pos, int offset = 0)
+bool GetPlannedPosition(int client, float[3] out_pos, int offset = 0)
 {
-	if (!HasActivePlan()) {
+	if (!HasActivePlan(client)) {
 		return false;
 	}
 	
-	if (s_movementPlanReadStack + offset >= MAX_AREA_MOVES_PLANNED_FOR_FUTURE) {
+	if (s_movementPlanReadStack[client] + offset >= MAX_AREA_MOVES_PLANNED_FOR_FUTURE) {
 		PrintToServer("Failed to get ahead pos");
 		return false;
 	}
 	
-	out_pos = s_movementPlan[s_movementPlanReadStack + offset];
+	out_pos = s_movementPlan[client][s_movementPlanReadStack[client] + offset];
 	
 	return true;
 }
 
-void ClearPlan()
+void ClearPlan(int client)
 {
-	s_movementPlanWriteStack = -1;
-	s_movementPlanReadStack = 0;
+	s_movementPlanWriteStack[client] = -1;
+	s_movementPlanReadStack[client] = 0;
 }
 
-bool HasActivePlan()
+bool HasActivePlan(int client)
 {
-	return s_movementPlanWriteStack != -1;
+	return s_movementPlanWriteStack[client] != -1;
 }
 
-void ContinuePlan()
+void ContinuePlan(int client)
 {
-	--s_movementPlanWriteStack;
-	if (s_movementPlanWriteStack < -1) {
-		s_movementPlanWriteStack = -1;
+	--s_movementPlanWriteStack[client];
+	if (s_movementPlanWriteStack[client] < -1) {
+		s_movementPlanWriteStack[client] = -1;
 	}
-	++s_movementPlanReadStack;
+	++s_movementPlanReadStack[client];
 }
 
-bool PlanMove(const float[3] planned_pos)
+bool PlanMove(int client, const float[3] planned_pos)
 {
-	if (s_movementPlanWriteStack >= MAX_AREA_MOVES_PLANNED_FOR_FUTURE) {
-		ClearPlan();
+	if (s_movementPlanWriteStack[client] >= MAX_AREA_MOVES_PLANNED_FOR_FUTURE) {
+		ClearPlan(client);
 		SetFailState("PLAN STACK OVERFLOWED");
 		return false;
 	}
 	
 	float pos[3];
 	pos = planned_pos;
-	s_movementPlan[++s_movementPlanWriteStack] = pos;
+	s_movementPlan[client][++s_movementPlanWriteStack[client]] = pos;
 
 	return true;
 }

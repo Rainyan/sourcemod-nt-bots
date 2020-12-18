@@ -22,7 +22,7 @@ void ConnectToDatabase()
 public void Cb_GetSolution(Database db, DBResultSet results, const char[] error, DataPack data)
 {
 	data.Reset();
-	//int bot_client = data.ReadCell();
+	int bot_client = data.ReadCell();
 	float pos_from[3];
 	float pos_to[3];
 	pos_from[0] = data.ReadFloat();
@@ -47,14 +47,14 @@ public void Cb_GetSolution(Database db, DBResultSet results, const char[] error,
 		if (results.RowCount != 0) {
 			//PrintToServer("Had actual result");
 			
-			ClearPlan();
+			ClearPlan(bot_client);
 			float xyz[3];
 			bool got_any_result = false;
 			while (results.FetchRow()) {
 				xyz[0] = results.FetchFloat(7);
 				xyz[1] = results.FetchFloat(8);
 				xyz[2] = results.FetchFloat(9);
-				PlanMove(xyz);
+				PlanMove(bot_client, xyz);
 				got_any_result = true;
 			}
 			
@@ -94,7 +94,7 @@ to_area_x, to_area_y, to_area_z) VALUES (%.1f, %.1f, %.1f, %.1f, %.1f, %.1f);";
 	}
 }
 
-void TrySolution(const float[3] pos_from, const float[3] pos_to)
+void TrySolution(int bot_client, const float[3] pos_from, const float[3] pos_to)
 {
 	decl String:sql[256];
 	
@@ -117,7 +117,7 @@ to_area_z = %.1f;";
 	//}
 	
 	DataPack data = new DataPack();
-	//data.WriteCell(bot_client);
+	data.WriteCell(bot_client);
 	data.WriteFloat(pos_from[0]);
 	data.WriteFloat(pos_from[1]);
 	data.WriteFloat(pos_from[2]);
@@ -127,7 +127,7 @@ to_area_z = %.1f;";
 	_db.Query(Cb_GetSolution, sql, data);
 }
 
-void RequestPath(const float[3] from, const float[3] to)
+void RequestPath(int client, const float[3] from, const float[3] to)
 {
 	float from_rounded[3];
 	float to_rounded[3];
@@ -138,7 +138,7 @@ void RequestPath(const float[3] from, const float[3] to)
 	RoundVector(from_rounded, BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE);
 	RoundVector(to_rounded, BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE);
 	
-	TrySolution(from_rounded, to_rounded);
+	TrySolution(client, from_rounded, to_rounded);
 }
 
 void UpdateDbTableNamesForThisMap()

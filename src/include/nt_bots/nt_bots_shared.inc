@@ -21,7 +21,7 @@ int prev_buttons[NEO_MAX_PLAYERS + 1];
 
 int pre_health[NEO_MAX_PLAYERS + 1];
 
-float target_pos[3];
+float target_pos[NEO_MAX_PLAYERS + 1][3];
 
 int bot_clients[NEO_MAX_PLAYERS];
 int num_bot_clients;

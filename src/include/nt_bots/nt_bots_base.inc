@@ -196,8 +196,8 @@ void MakePlan(int client)
 		return;
 	}
 	
-	ClearPlan();
-	RequestPath(start_pos, the_target_pos);
+	ClearPlan(client);
+	RequestPath(client, start_pos, the_target_pos);
 }
 
 // Assumes weapon input to always be a valid NT wep index,
@@ -405,4 +405,14 @@ stock void RemoveFromArr(int[] array, int& num_elements, const int value)
             return;
         }
     }
+}
+
+int Debug_GetSomeBotClient()
+{
+	for (int client = 1; client <= MaxClients; ++client) {
+		if (IsClientInGame(client) && IsBotClient(client)) {
+			return client;
+		}
+	}
+	return 0;
 }

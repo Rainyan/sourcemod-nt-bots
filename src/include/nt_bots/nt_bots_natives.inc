@@ -141,7 +141,7 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse,
 			buttons |= g_cBitsOverride.IntValue;
 			prev_buttons[client] = buttons;
 			
-			if (HasActivePlan()) {
+			if (HasActivePlan(client)) {
 				buttons |= DecideVelocity(client, is_stuck, angles, vel);
 			}
 			

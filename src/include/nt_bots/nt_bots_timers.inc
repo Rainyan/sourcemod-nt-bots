@@ -17,15 +17,15 @@ public Action Timer_Generic(Handle timer, any data)
 
 static void TimedThink(int client)
 {
-	if (!HasActivePlan()) {
+	if (!HasActivePlan(client)) {
 		MakePlan(client);
 		
 		float client_pos[3];
 		GetClientAbsOrigin(client, client_pos);
 		
 		float next_pos[3];
-		if (GetPlannedPosition(next_pos)) {
-			RequestPath(client_pos, next_pos);
+		if (GetPlannedPosition(client, next_pos)) {
+			RequestPath(client, client_pos, next_pos);
 		}
 	}
 }

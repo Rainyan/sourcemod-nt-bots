@@ -5,6 +5,12 @@
 
 public Action Cmd_OrderPos(int client, int argc)
 {
+	int bot_client = Debug_GetSomeBotClient();
+	if (bot_client == 0) {
+		ReplyToCommand(client, "%s No active bots found.", BOTS_MSG_PREFIX);
+		return Plugin_Handled;
+	}
+	
 	if (argc == 3) {
 		decl String:arg[4];
 		for (int coord = 0; coord < 3; ++coord) {
@@ -12,7 +18,7 @@ public Action Cmd_OrderPos(int client, int argc)
 				ReplyToCommand(client, "%s Unknown position", BOTS_MSG_PREFIX);
 				return Plugin_Handled;
 			} else {
-				target_pos[coord] = StringToFloat(arg);
+				target_pos[bot_client][coord] = StringToFloat(arg);
 			}
 		}
 	} else {
@@ -31,7 +37,7 @@ none to raycast from position.", BOTS_MSG_PREFIX);
 			
 			TR_TraceRayFilter(eyePos, eyeAng, MASK_OPAQUE, RayType_Infinite, DidNotHitSelf, client);
 			if (TR_DidHit() /*&& !TR_AllSolid()*/) {
-				TR_GetEndPosition(target_pos);
+				TR_GetEndPosition(target_pos[bot_client]);
 			} else {
 				ReplyToCommand(client, "%s Indeterminate trace", BOTS_MSG_PREFIX);
 				return Plugin_Handled;
@@ -39,7 +45,7 @@ none to raycast from position.", BOTS_MSG_PREFIX);
 		}
 	}
 	
-	ClearPlan();
+	ClearPlan(client);
 	
 	ReplyToCommand(client, "%s Moving to %f, %f, %f", BOTS_MSG_PREFIX,
 		target_pos[0], target_pos[1], target_pos[2]);
@@ -55,6 +61,12 @@ public Action Cmd_SetPos(int client, int argc)
 		return Plugin_Handled;
 	}
 	
+	int bot_client = Debug_GetSomeBotClient();
+	if (bot_client == 0) {
+		ReplyToCommand(client, "%s No active bots found.", BOTS_MSG_PREFIX);
+		return Plugin_Handled;
+	}
+	
 	float xyz[3];
 	
 	decl String:arg[4];
@@ -67,12 +79,7 @@ public Action Cmd_SetPos(int client, int argc)
 		}
 	}
 	
-	for (int i = 1; i <= MaxClients; ++i) {
-		if (IsClientInGame(i) && IsBotClient(i)) {
-			TeleportEntity(i, xyz, NULL_VECTOR, NULL_VECTOR);
-			break;
-		}
-	}
+	TeleportEntity(bot_client, xyz, NULL_VECTOR, NULL_VECTOR);
 	
 	return Plugin_Handled;
 }

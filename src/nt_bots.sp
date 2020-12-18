@@ -4,19 +4,15 @@
 #include <sdkhooks>
 #include <sdktools>
 
+#include <neotokyo>
+
 #include "include/nt_bots/nt_bots_shared.inc"
-#include "include/nt_bots/extent.inc"
-#include "include/nt_bots/nav_area.inc"
-#include "include/nt_bots/nav_area_list.inc"
 #include "include/nt_bots/nt_bots_base.inc"
 #include "include/nt_bots/nt_bots_commands.inc"
 #include "include/nt_bots/nt_bots_timers.inc"
-#include "include/nt_bots/nt_bots_nav_parser.inc"
-#include "include/nt_bots/nav_mesh.inc"
-#include "include/nt_bots/nav_mesh_singleton.inc"
 #include "include/nt_bots/nt_bots_ai.inc"
 #include "include/nt_bots/nt_bots_natives.inc"
-#include "include/nt_bots/pathfind.inc"
+#include "include/nt_bots/nt_bots_database.inc"
 
 public Plugin myinfo = {
     name = "NT Bots",

@@ -1,121 +1,77 @@
-#if !defined(_NT_BOTS_SHARED_INC_)
+#if defined(_NT_BOTS_SHARED_INC_)
+#endinput
+#endif
 #define _NT_BOTS_SHARED_INC_
 
-#define PLUGIN_VERSION "0.3"
+#define PLUGIN_VERSION "0.5"
+
+#define BOTS_MSG_PREFIX "[BOT]"
 
 #define NEO_MAX_PLAYERS 32
 
-#define BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE 128.0
+#define BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE 64
 
-#define BOT_TIMED_THINK_INTERVAL 2.0
-
-#define MAX_AREAS 2048
-#define MAX_APPROACH_AREAS 16
-#define MAX_OVERLAPPING_AREAS (MAX_APPROACH_AREAS * 2) // TODO: set properly
-#define MAX_ENCOUNTER_SPOTS (MAX_APPROACH_AREAS * 2) // TODO: set properly
+#define BOT_TIMED_THINK_INTERVAL 1.0
 
 #define MAX_AREA_MOVES_PLANNED_FOR_FUTURE 100
 
-#define NAV_MESH_CROUCH			(1 << 0)
-#define NAV_MESH_JUMP			(1 << 1)
-#define NAV_MESH_PRECISE			(1 << 2)
-#define NAV_MESH_NO_JUMP			(1 << 3)
-#define NAV_MESH_STOP			(1 << 4)
-#define NAV_MESH_RUN				(1 << 5)
-#define NAV_MESH_WALK			(1 << 6)
-#define NAV_MESH_AVOID			(1 << 7)
-#define NAV_MESH_TRANSIENT		(1 << 8)
-#define NAV_MESH_DONT_HIDE		(1 << 9)
-#define NAV_MESH_STAND			(1 << 10)
-#define NAV_MESH_NO_HOSTAGES	(1 << 11)
-
-#define UNDEFINED_PLACE 0 // ie: "no place"
-#define ANY_PLACE 0xFFFF
-
-// Team indices for arrays where only 2 teams are required
-// (Jinrai and NSF), so TEAM_SPECTATOR etc. don't need to be allocated.
-// Use the teamidx_to_navteamidx(...) and navteamidx_to_teamidx(...)
-// helpers to convert between these enums and actual engine team indices.
-enum {
-	NAV_TEAM_IDX_JINRAI = 0,
-	NAV_TEAM_IDX_NSF,
-	
-	NUM_NAV_TEAMS
-};
-
-enum NavDirType
-{
-	NORTH = 0,
-	EAST = 1,
-	SOUTH = 2,
-	WEST = 3,
-
-	NUM_DIRECTIONS
-};
-new const String:nav_dir_names[NUM_DIRECTIONS][] = { "north", "east", "south", "west" };
-
-enum NavTraverseType {
-	// NOTE: First 4 directions MUST match NavDirType
-	// (because the pathfinding does some funky type casting reliant on the ordering)
-	GO_NORTH = 0,
-	GO_EAST,
-	GO_SOUTH,
-	GO_WEST,
-	GO_LADDER_UP,
-	GO_LADDER_DOWN,
-	GO_JUMP,
-
-	NUM_TRAVERSE_TYPES
-};
-
 const SDKHookType thinkHookType = SDKHook_PreThink;
 
-float vec3_origin[3] = { 0.0, 0.0, 0.0 };
+int prev_buttons[NEO_MAX_PLAYERS + 1];
 
-float s_targetPos[3];
+int pre_health[NEO_MAX_PLAYERS + 1];
 
-static int s_movementPlan[MAX_AREA_MOVES_PLANNED_FOR_FUTURE];
-static int s_movementPlanStack = -1;
+float target_pos[3];
 
-void PlanMove(const int target_area_id)
-{
-	if (s_movementPlanStack >= MAX_AREA_MOVES_PLANNED_FOR_FUTURE) {
-		return;
-	}
-	s_movementPlan[++s_movementPlanStack] = target_area_id;
-}
+int bot_clients[NEO_MAX_PLAYERS];
+int num_bot_clients;
 
-void ClearPlan()
-{
-	s_movementPlanStack = -1;
-}
+stock float vec3_origin[3] = { 0.0, 0.0, 0.0 };
 
-bool HasActivePlan()
-{
-	return s_movementPlanStack != -1;
-}
+stock int ray_color[4] = { 255, 255, 255, 255 };
 
-int GetAreaOfPlan()
-{
-	return HasActivePlan() ? s_movementPlanStack : 0;
-}
-
-void ContinuePlan()
-{
-	--s_movementPlanStack;
-	if (s_movementPlanStack < -1) {
-		s_movementPlanStack = -1;
-	}
-}
-
-int s_master_marker = 1;
-int s_open_list_id = 0;
-
-float s_ang[3];
-
-ConVar g_cAngleOffset = null;
 ConVar g_cBitsOverride = null;
+ConVar g_cAimInaccuracy = null;
+ConVar g_cReactionTime = null;
+ConVar g_cSuppressFireTime = null;
+ConVar g_cForgetEnemyTime = null;
+ConVar g_cBotAimSpeed = null;
+ConVar g_cNoTarget = null;
+ConVar g_cMaxSpinSpeed = null;
 
 int rayIndex = 0;
 
-#endif // _NT_BOTS_SHARED_INC_
+int server_tick_rate;
+
+stock const String:bot_player_models[2][3][] = {
+	// Jinrai
+	{
+		// Recon
+		{
+			"models/player/jinrai_msf.mdl"
+		},
+		// Assault
+		{
+			"models/player/jinrai_mam.mdl"
+		},
+		// Support
+		{
+			"models/player/jinrai_mhm.mdl"
+		}
+	},
+	// NSF
+	{
+		// Recon
+		{
+			"models/player/nsf_gsf.mdl"
+		},
+		// Assault
+		{
+			"models/player/nsf_gam.mdl"
+		},
+		// Support
+		{
+			"models/player/nsf_ghm.mdl"
+		}
+	}
+};

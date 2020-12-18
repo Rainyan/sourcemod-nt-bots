@@ -1,12 +1,10 @@
-#if !defined(_NT_BOTS_COMMANDS_INC_)
+#if defined(_NT_BOTS_COMMANDS_INC_)
+#endinput
+#endif
 #define _NT_BOTS_COMMANDS_INC_
-
-#define BOTS_MSG_PREFIX "[BOT]"
 
 public Action Cmd_OrderPos(int client, int argc)
 {
-	float xyz[3];
-	
 	if (argc == 3) {
 		decl String:arg[4];
 		for (int coord = 0; coord < 3; ++coord) {
@@ -14,11 +12,9 @@ public Action Cmd_OrderPos(int client, int argc)
 				ReplyToCommand(client, "%s Unknown position", BOTS_MSG_PREFIX);
 				return Plugin_Handled;
 			} else {
-				xyz[coord] = StringToFloat(arg);
+				target_pos[coord] = StringToFloat(arg);
 			}
 		}
-		ClearPlan();
-		s_targetPos = xyz;
 	} else {
 		if (client == 0) {
 			ReplyToCommand(client, "%s Need to provide X Y Z coordinates if \
@@ -33,38 +29,33 @@ none to raycast from position.", BOTS_MSG_PREFIX);
 			GetClientEyePosition(client, eyePos);
 			GetClientEyeAngles(client, eyeAng);
 			
-			Handle ray = TR_TraceRayFilterEx(eyePos, eyeAng, MASK_OPAQUE,
-				RayType_Infinite, DidNotHitSelf, client);
-			if (TR_DidHit(ray) /*&& !TR_AllSolid(ray)*/) {
-				TR_GetEndPosition(xyz, ray);
+			TR_TraceRayFilter(eyePos, eyeAng, MASK_OPAQUE, RayType_Infinite, DidNotHitSelf, client);
+			if (TR_DidHit() /*&& !TR_AllSolid()*/) {
+				TR_GetEndPosition(target_pos);
 			} else {
-				ReplyToCommand(client, "%s Indeterminate trace",
-					BOTS_MSG_PREFIX);
-				delete ray;
+				ReplyToCommand(client, "%s Indeterminate trace", BOTS_MSG_PREFIX);
 				return Plugin_Handled;
 			}
-			delete ray;
 		}
 	}
 	
 	ClearPlan();
-	s_targetPos = xyz;
 	
 	ReplyToCommand(client, "%s Moving to %f, %f, %f", BOTS_MSG_PREFIX,
-		s_targetPos[0], s_targetPos[1], s_targetPos[2]);
+		target_pos[0], target_pos[1], target_pos[2]);
 	
 	return Plugin_Handled;
 }
 
 public Action Cmd_SetPos(int client, int argc)
 {
-	float xyz[3];
-	
 	if (argc != 3) {
 		ReplyToCommand(client, "%s Need to provide X Y Z coords",
 			BOTS_MSG_PREFIX);
 		return Plugin_Handled;
 	}
+	
+	float xyz[3];
 	
 	decl String:arg[4];
 	for (int coord = 0; coord < 3; ++coord) {
@@ -85,5 +76,3 @@ public Action Cmd_SetPos(int client, int argc)
 	
 	return Plugin_Handled;
 }
-
-#endif // _NT_BOTS_COMMANDS_INC_

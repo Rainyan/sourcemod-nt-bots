@@ -13,6 +13,9 @@ public void OnPluginStart()
 	else if (!HookEventEx("player_hurt", OnPlayerHurt, EventHookMode_Pre)) {
 		SetFailState("Failed to hook event player_hurt");
 	}
+	else if (!HookEventEx("game_round_start", OnRoundStart, EventHookMode_Post)) {
+		SetFailState("Failed to hook event game_round_start");
+	}
 	
 	CreateConVar("sm_nt_bots_version", PLUGIN_VERSION,
 		"NT Bots plugin version.", FCVAR_DONTRECORD);
@@ -74,8 +77,6 @@ public void OnMapStart()
 			BotSetup(client);
 		}
 	}
-	
-	HookEvent("game_round_start", OnRoundStart, EventHookMode_Post);
 }
 
 void BotSetup(int client)

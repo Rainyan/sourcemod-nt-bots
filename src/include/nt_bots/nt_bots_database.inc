@@ -141,7 +141,7 @@ void RequestPath(const float[3] from, const float[3] to)
 	TrySolution(from_rounded, to_rounded);
 }
 
-static void UpdateDbTableNamesForThisMap()
+void UpdateDbTableNamesForThisMap()
 {
 	decl String:current_map_name[PLATFORM_MAX_PATH];
 	

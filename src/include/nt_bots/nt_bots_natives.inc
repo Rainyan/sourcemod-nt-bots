@@ -51,6 +51,8 @@ public void OnConfigsExecuted()
 
 public void OnMapStart()
 {
+	UpdateDbTableNamesForThisMap();
+	
 	rayIndex = PrecacheModel("sprites/purplelaser1.spr", true);
 	if (rayIndex == 0) {
 		SetFailState("Failed to precache model");

@@ -16,7 +16,6 @@ void ConnectToDatabase()
 		if (_db == null) {
 			SetFailState("SQLite connection error: %s", error);
 		}
-		UpdateDbTableNamesForThisMap();
 	}
 }
 

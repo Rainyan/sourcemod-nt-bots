@@ -20,4 +20,6 @@ static void TimedThink(int client)
 	if (!HasActivePlan(client) && !IsNearPlannedPosition(client)) {
 		MakePlan(client, true);
 	}
+	
+	bot_last_took_dmg_from[client] = 0;
 }

@@ -175,11 +175,12 @@ public void OnPlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 		
 		SetRandomSeed(GetGameTickCount() + client);
 		_close_enough_dist[client] = GetRandomInt(BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE_MIN, BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE_MAX);
+		bot_last_took_dmg_from[client] = 0;
 		
-		FakeClientCommand(client, "-attack");
-		FakeClientCommand(client, "-jump");
-		FakeClientCommand(client, "-duck");
-		FakeClientCommand(client, "-sprint");
+		// Just making sure we aren't stuck holding keys.
+		FakeClientCommand(client, "-attack;-jump;-duck;-sprint;joinstar 1");
+		// Join alpha squad!
+		SetPlayerStar(client, 1);
 		
 		CreateTimer(0.1, Timer_FreeToThink, userid, TIMER_FLAG_NO_MAPCHANGE);
 		CreateTimer(1.0, Timer_ChooseWeapons, userid, TIMER_FLAG_NO_MAPCHANGE);
@@ -188,38 +189,11 @@ public void OnPlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 
 public Action OnPlayerHurt(Event event, const char[] name, bool dontBroadcast)
 {
-	int victim = GetClientOfUserId( event.GetInt("userid"));
+	int victim = GetClientOfUserId(event.GetInt("userid"));
 	
-	if (victim == 0 || !IsBotClient(victim)) {
-		return Plugin_Continue;
+	if (victim != 0 || IsBotClient(victim)) {
+		bot_last_took_dmg_from[victim] = GetClientOfUserId(event.GetInt("attacker"));
 	}
-	
-	int health = event.GetInt("health");
-	float damage = 1.0 * (pre_health[victim] - health);
-	
-	// We can't reasonably block a lethal blow without major reworking of this.
-	// If this is a lethal hit, just let it pass.
-	if (damage <= 0 || damage >= health) {
-		return Plugin_Continue;
-	}
-	
-	// TODO: is there some better way to handle this?
-	// Because we're hot swapping living bot classes after spawn,
-	// the game logic still treats them as recons in terms of damage.
-	// So we have to manually adjust damage here.
-	switch (GetPlayerClass(victim)) {
-		case CLASS_ASSAULT: damage *= 0.833333;
-		case CLASS_SUPPORT: damage *= 0.466666;
-	}
-	
-	health = pre_health[victim] - RoundToNearest(damage);
-	if (health < 0) {
-		health = 0;
-	}
-	
-	event.SetInt("health", health);
-	
-	pre_health[victim] = health;
 	
 	return Plugin_Continue;
 }

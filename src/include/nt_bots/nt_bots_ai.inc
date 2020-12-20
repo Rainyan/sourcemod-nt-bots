@@ -28,9 +28,6 @@ public bool Cb_TraceEnumerator(int hit_entity, int other_client)
 
 public void ThinkHook(int client)
 {	
-	int client_team = GetClientTeam(client);
-	//int other_client_team;
-	
 	float eye_pos[3];
 	float other_client_eye_pos[3];
 	float eye_dirs[3];
@@ -38,12 +35,18 @@ public void ThinkHook(int client)
 	
 	GetClientEyePosition(client, eye_pos);
 	
+	float normalized_ang_fwd[3];
+	float actual_eye_ang[3]; float actual_eye_fwd[3];
+	GetClientEyeAngles(client, actual_eye_ang);
+	GetAngleVectors(actual_eye_ang, actual_eye_fwd, NULL_VECTOR, NULL_VECTOR);
+	NormalizeVector(actual_eye_fwd, actual_eye_fwd);
+	
 	if (!g_cNoTarget.BoolValue) {
 		for (int other_client = 1; other_client <= MaxClients; ++other_client) {
 			if (!IsClientInGame(other_client) || !IsPlayerAlive(other_client)) {
 				continue;
 			}
-			else if (client_team == GetClientTeam(other_client)) {
+			else if (GetClientTeam(client) == GetClientTeam(other_client)) {
 				continue;
 			}
 			
@@ -51,6 +54,17 @@ public void ThinkHook(int client)
 			
 			MakeVectorFromPoints(eye_pos, other_client_eye_pos, eye_dirs);
 			GetVectorAngles(eye_dirs, eye_ang);
+			
+			// Unless we just got attacked by this player...
+			if (bot_last_took_dmg_from[client] != other_client) {
+				// ...don't spot enemies behind the bot
+				GetAngleVectors(eye_ang, normalized_ang_fwd, NULL_VECTOR, NULL_VECTOR);
+				NormalizeVector(normalized_ang_fwd, normalized_ang_fwd);
+				float arccos = ArcCosine(GetVectorDotProduct(actual_eye_fwd, normalized_ang_fwd));
+				if (arccos > 1) {
+					continue;
+				}
+			}
 			
 			TR_TraceRayFilter(eye_pos, eye_ang, MASK_OPAQUE,
 				RayType_Infinite, DidNotHitSelf, client);
@@ -294,8 +308,11 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 			int current_ammo = GetEntProp(weapon, Prop_Send, "m_iClip1");
 			int total_ammo = GetWeaponAmmo(client, GetAmmoType(weapon));
 			
-			float eye_pos[3]; float eye_dir[3];
+			float eye_pos[3]; float eye_ang[3]; float eye_dir[3]; float target_dir[3];
 			GetClientEyePosition(client, eye_pos);
+			GetClientEyeAngles(client, eye_ang);
+			GetAngleVectors(eye_ang, eye_dir, NULL_VECTOR, NULL_VECTOR);
+			NormalizeVector(eye_dir, eye_dir);
 			
 			if (current_ammo > 0) {
 				//PrintToChatAll("Current ammo: %d", current_ammo);
@@ -308,9 +325,8 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 						
 						is_stuck = false;
 						
-						SubtractVectors(_enemy_positions[client][last_seen_client], eye_pos, eye_dir);
-						GetVectorAngles(eye_dir, perfect_angles[client]);
-						
+						SubtractVectors(_enemy_positions[client][last_seen_client], eye_pos, target_dir);
+						NormalizeVector(target_dir, target_dir);
 	#if(0)
 						float ray_pos[3];
 						TR_TraceRay(eye_pos, angles, MASK_OPAQUE, RayType_Infinite);
@@ -322,6 +338,7 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 	#endif
 	
 						if (last_seen_client != -1 && (time_now - last_spotted_time) < g_cSuppressFireTime.FloatValue) {
+							GetVectorAngles(target_dir, perfect_angles[client]);
 							
 							if (last_spotted[client] == 0) {
 								last_spotted[client] = last_spotted_time;
@@ -357,8 +374,8 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 								SetEntProp(client, Prop_Send, "m_iThermoptic", 0);
 							}
 							
-							SubtractVectors(planned_pos, eye_pos, eye_dir);
-							GetVectorAngles(eye_dir, perfect_angles[client]);
+							SubtractVectors(planned_pos, eye_pos, target_dir);
+							GetVectorAngles(target_dir, perfect_angles[client]);
 						}
 					}
 				}

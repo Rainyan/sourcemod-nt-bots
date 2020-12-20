@@ -12,7 +12,7 @@
 // Bot will randomly decide their tolerance for waypoint distance from this range.
 // This will slightly change their pathing, offering at least some variance in encounters.
 #define BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE_MIN 64
-#define BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE_MAX 192
+#define BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE_MAX 128
 
 #define BOT_TIMED_THINK_INTERVAL 5.0
 
@@ -49,6 +49,8 @@ int pre_health[NEO_MAX_PLAYERS + 1];
 
 int bot_clients[NEO_MAX_PLAYERS];
 int num_bot_clients;
+
+int bot_last_took_dmg_from[NEO_MAX_PLAYERS + 1];
 
 bool bot_can_think[NEO_MAX_PLAYERS + 1];
 

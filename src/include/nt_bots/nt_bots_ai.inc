@@ -87,8 +87,6 @@ static float lastPos[NEO_MAX_PLAYERS + 1][3];
 static int lastStuckTraceTime[NEO_MAX_PLAYERS + 1];
 static int _num_cycles_stuck[NEO_MAX_PLAYERS + 1];
 
-int _close_enough_dist[NEO_MAX_PLAYERS + 1];
-
 bool CheckIfStuck(int client)
 {
 	float currentPos[3], currentAng[3];
@@ -251,8 +249,6 @@ int DecideVelocity(int client, bool is_stuck, const float aim_ang[3], float vel[
 		}
 	}
 	
-	buttons |= (IN_RUN | IN_SPRINT);
-	
 	return buttons;
 }
 
@@ -364,7 +360,7 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 				}
 				else {
 					float planned_pos[3];
-					if (GetPlannedPosition(client, planned_pos, 1)) {
+					if (GetPlannedPosition(client, planned_pos, 2)) {
 						if (VectorsEqual(planned_pos, vec3_origin)) {
 							is_stuck = false;
 							perfect_angles[client] = previous_aim[client];
@@ -375,6 +371,7 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 							}
 							
 							SubtractVectors(planned_pos, eye_pos, target_dir);
+							
 							GetVectorAngles(target_dir, perfect_angles[client]);
 						}
 					}
@@ -437,21 +434,24 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 	}
 	
 	if (is_stuck) {
-		static float rotate = 0.0;
 		int num_cycles_stuck = GetNumCyclesStuck(client);
-		SetRandomSeed(GetGameTickCount() + num_cycles_stuck);
-		rotate -= 0.001 * num_cycles_stuck;
-		if (rotate >= 360) {
-			rotate -= 360.0;
+		
+		if (num_cycles_stuck > server_tick_rate) {
+			static float rotate = 0.0;
+			//SetRandomSeed(GetGameTickCount() + num_cycles_stuck);
+			rotate -= 0.001 * num_cycles_stuck;
+			if (rotate >= 360) {
+				rotate -= 360.0;
+			}
+			else if (rotate < 0) {
+				rotate += 360.0;
+			}
+			angles[1] += rotate;
 		}
-		else if (rotate < 0) {
-			rotate += 360.0;
-		}
-		angles[1] += rotate;
 	}
 	
-	if (buttons & IN_ATTACK) {
-		buttons &= ~(IN_SPRINT | IN_RUN);
+	if (!(buttons & IN_ATTACK) && GetPlayerClass(client) != CLASS_SUPPORT) {
+		buttons |= (IN_RUN | IN_SPRINT);
 	}
 	
 	return buttons;

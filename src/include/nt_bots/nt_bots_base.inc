@@ -283,19 +283,21 @@ bool GetNearestSpottedEnemy(int self, float[3] out_pos)
 	float latest_spotted_time;
 	
 	for (int client = 1; client <= MaxClients; ++client) {
-		if (!IsClientInGame(client) || GetClientTeam(client) == GetClientTeam(self)) {
+		if (!IsClientInGame(client) || !IsPlayerAlive(client) || GetClientTeam(client) == GetClientTeam(self)) {
 			continue;
+		}
+		
+		int weapon = GetPlayerWeaponSlot(client, SLOT_PRIMARY);
+		if (IsWeaponGhost(weapon)) {
+			latest_spotted = client;
+			GetClientAbsOrigin(client, _enemy_positions[self][latest_spotted]);
+			break;
 		}
 		
 		float spotted_time = time_now - _enemy_last_spotted_time[self][client];
 		
 		if (latest_spotted == -1 || spotted_time < latest_spotted_time) {
 			if (!VectorsEqual(_enemy_positions[self][client], vec3_origin)) {
-				PrintToServer("WAS NOT NULL VECTOR: (%f %f %f)",
-					_enemy_positions[self][client][0],
-					_enemy_positions[self][client][1],
-					_enemy_positions[self][client][2]);
-				
 				latest_spotted = client;
 				latest_spotted_time = spotted_time;
 			}
@@ -471,4 +473,37 @@ stock bool IsWeaponSemiautoFire(int weapon)
 		}
 	}
 	return false;
+}
+
+stock bool EnemyHasGhost(int self)
+{
+	int team = GetClientTeam(self);
+	
+	for (int client = 1; client <= MaxClients; ++client) {
+		if (!IsClientInGame(client) || !IsPlayerAlive(client) || GetClientTeam(client) == team) {
+			continue;
+		}
+		if (IsWeaponGhost(GetPlayerWeaponSlot(client, SLOT_PRIMARY))) {
+			_close_enough_dist[self] = BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE_MIN;
+			return true;
+		}
+	}
+	
+	SetRandomSeed(GetGameTickCount() + self);
+	_close_enough_dist[self] = GetRandomInt(BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE_MIN, BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE_MAX);
+	
+	return false;
+}
+
+// Slay bots without losing XP
+void SoftSlayAllBots()
+{
+	for (int client = 1; client <= MaxClients; ++client) {
+		if (!IsClientInGame(client) || !IsBotClient(client) || !IsPlayerAlive(client)) {
+			continue;
+		}
+		int pre_slay_xp = GetPlayerXP(client);
+		FakeClientCommand(client, "kill");
+		SetPlayerXP(client, pre_slay_xp);
+	}
 }

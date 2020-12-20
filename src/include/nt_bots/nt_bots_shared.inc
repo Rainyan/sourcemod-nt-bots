@@ -18,6 +18,8 @@
 
 #define MAX_AREA_MOVES_PLANNED_FOR_FUTURE 100
 
+int _close_enough_dist[NEO_MAX_PLAYERS + 1];
+
 enum {
 	WEPNAME_GHOST = 0,
 	WEPNAME_MPN,
@@ -40,6 +42,7 @@ enum {
 
 float _enemy_positions[NEO_MAX_PLAYERS + 1][NEO_MAX_PLAYERS + 1][3];
 float _enemy_last_spotted_time[NEO_MAX_PLAYERS + 1][NEO_MAX_PLAYERS + 1];
+float round_start_time;
 
 const SDKHookType thinkHookType = SDKHook_PreThink;
 
@@ -57,6 +60,8 @@ bool bot_can_think[NEO_MAX_PLAYERS + 1];
 stock float vec3_origin[3] = { 0.0, 0.0, 0.0 };
 
 stock int ray_color[4] = { 255, 255, 255, 255 };
+
+Handle g_hGenericTimer = null;
 
 ConVar g_cBitsOverride = null;
 ConVar g_cAimInaccuracy = null;

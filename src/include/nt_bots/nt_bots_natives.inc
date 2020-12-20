@@ -23,6 +23,8 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_nt_bots_order_pos", Cmd_OrderPos);
 	RegConsoleCmd("sm_nt_bots_place", Cmd_SetPos);
 	
+	RegConsoleCmd("sm_tie", Cmd_BotsTie);
+	
 	g_cBitsOverride = CreateConVar("sm_nt_bots_bits", "0");
 	
 	g_cAimInaccuracy = CreateConVar("sm_nt_bots_aim_inaccuracy", "25.0", "Scale of bot aim inaccuracy.",
@@ -57,16 +59,57 @@ public void OnConfigsExecuted()
 	ConnectToDatabase();
 }
 
+public Action Cmd_BotsTie(int client, int argc)
+{
+	// 15 seconds of freeze time late spawning for humans,
+	// and idle players might take another 15 seconds before auto-spawning.
+	// So wait for them while they appear "dead".
+	int wait_at_least_secs = 30;
+	if (round_start_time == 0 || GetGameTime() - round_start_time < wait_at_least_secs) {
+		ReplyToCommand(client, "%s Please wait at least %d seconds from the beginning of the round.", BOTS_MSG_PREFIX, wait_at_least_secs);
+		return Plugin_Handled;
+	}
+	
+	int num_dead_playing_humans, num_alive_playing_bots;
+	
+	for (int iter_client = 1; iter_client <= MaxClients; ++iter_client) {
+		if (!IsClientInGame(iter_client)) {
+			continue;
+		}
+		if (!IsBotClient(iter_client)) {
+			if (GetClientTeam(iter_client) > TEAM_SPECTATOR && !IsPlayerAlive(iter_client)) {
+				++num_dead_playing_humans;
+			}
+		}
+		else if (IsPlayerAlive(iter_client)) {
+			++num_alive_playing_bots;
+		}
+	}
+	
+	if (num_alive_playing_bots == 0) {
+		ReplyToCommand(client, "%s No living bots found to use this command on.", BOTS_MSG_PREFIX);
+	}
+	else if (num_dead_playing_humans > 0 && num_alive_playing_bots > 0) {
+		SoftSlayAllBots();
+		PrintToChatAll("%s Only bots remaining. Ending the round in a tie.", BOTS_MSG_PREFIX);
+	}
+	else {
+		ReplyToCommand(client, "%s Cannot use this command right now. Need to have only bot players alive, and human players in at least one team.", BOTS_MSG_PREFIX);
+	}
+	
+	return Plugin_Handled;
+}
+
 public void OnMapStart()
 {
+	round_start_time = 0.0;
+	
 	UpdateDbTableNamesForThisMap();
 	
 	rayIndex = PrecacheModel("sprites/purplelaser1.spr", true);
 	if (rayIndex == 0) {
 		SetFailState("Failed to precache model");
 	}
-	
-	CreateTimer(BOT_TIMED_THINK_INTERVAL, Timer_Generic, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 	
 	for (int client = 1; client <= MaxClients; ++client) {
 		pre_health[client] = 100;
@@ -146,6 +189,10 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse,
 			}
 		}
 		
+		if (buttons & IN_ATTACK) {
+			buttons &= ~(IN_SPRINT | IN_RUN);
+		}
+		
 		prev_buttons[client] = buttons;
 	}
 	
@@ -154,6 +201,14 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse,
 
 public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
+	round_start_time = GetGameTime();
+	
+	if (g_hGenericTimer != null) {
+		delete g_hGenericTimer;
+		g_hGenericTimer = null;
+	}
+	g_hGenericTimer = CreateTimer(BOT_TIMED_THINK_INTERVAL, Timer_Generic, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	
 	SetRandomSeed(GetGameTickCount());
 	g_cBotClass.SetInt(GetRandomInt(CLASS_RECON, CLASS_SUPPORT), true, false);
 	

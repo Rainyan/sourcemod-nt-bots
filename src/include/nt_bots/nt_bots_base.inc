@@ -184,7 +184,7 @@ stock float fclamp(const float value, const float min, const float max)
 	return fmax(fmin(value, min), max);
 }
 
-void MakePlan(int client)
+void MakePlan(int client, bool hunt = false)
 {
 	//PrintToServer("MakePlan: %d", client);
 	
@@ -193,9 +193,30 @@ void MakePlan(int client)
 	
 	float the_target_pos[3];
 	
-	// No ghost found, and no enemies found. Do nothing.
-	if (!GetGhostPos(the_target_pos) && !GetNearestEnemy(client, the_target_pos)) {
-		return;
+	// Not explicitly looking to hunt down last seen player
+	if (!hunt) {
+		// However, if we have spotted an enemy...
+		if (GetNearestSpottedEnemy(client, the_target_pos)) {
+			// ...sometimes, go after them
+			SetRandomSeed(GetGameTickCount() + client);
+			if (GetRandomInt(0, 2) == 0) {
+				GetGhostPos(the_target_pos);
+			}
+		}
+		else if (!GetGhostPos(the_target_pos)) {
+			// No ghost found, and no enemies found. Do nothing.
+			return;
+		}
+	}
+	// Hunt down last seen player location
+	else {
+		// But if there wasn't any enemy, go for ghost instead
+		if (!GetNearestSpottedEnemy(client, the_target_pos)) {
+			if (!GetGhostPos(the_target_pos)) {
+				// No ghost found, and no enemies found. Do nothing.
+				return;
+			}
+		}
 	}
 	
 	RequestPath(client, start_pos, the_target_pos);
@@ -254,41 +275,43 @@ bool GetGhostPos(float[3] out_pos)
 	return false;
 }
 
-bool GetNearestEnemy(int self, float[3] out_pos)
+bool GetNearestSpottedEnemy(int self, float[3] out_pos)
 {
+	float time_now = GetGameTime();
+	
+	int latest_spotted = -1;
+	float latest_spotted_time;
+	
 	for (int client = 1; client <= MaxClients; ++client) {
 		if (!IsClientInGame(client) || GetClientTeam(client) == GetClientTeam(self)) {
 			continue;
 		}
-		GetClientAbsOrigin(client, out_pos);
-		return true;
+		
+		float spotted_time = time_now - _enemy_last_spotted_time[self][client];
+		
+		if (latest_spotted == -1 || spotted_time < latest_spotted_time) {
+			if (!VectorsEqual(_enemy_positions[self][client], vec3_origin)) {
+				PrintToServer("WAS NOT NULL VECTOR: (%f %f %f)",
+					_enemy_positions[self][client][0],
+					_enemy_positions[self][client][1],
+					_enemy_positions[self][client][2]);
+				
+				latest_spotted = client;
+				latest_spotted_time = spotted_time;
+			}
+		}
 	}
-	return false;
+	
+	if (latest_spotted != -1) {
+		out_pos = _enemy_positions[self][latest_spotted];
+	}
+	
+	return latest_spotted != -1;
 }
 
 // Gets a random loadout weapon string based on class and XP.
 void SuggestWeapon(int class, int xp, char[] out_weapon, int maxlen)
-{
-	enum {
-		//WEPNAME_GHOST = 0,
-		WEPNAME_MPN = 1,
-		WEPNAME_SRM,
-		WEPNAME_SRM_S,
-		WEPNAME_JITTE,
-		WEPNAME_JITTESCOPED,
-		WEPNAME_ZR68C,
-		WEPNAME_ZR68L,
-		WEPNAME_ZR68S,
-		WEPNAME_SUPA7,
-		WEPNAME_M41,
-		WEPNAME_M41S,
-		WEPNAME_MX,
-		WEPNAME_MX_SILENCED,
-		WEPNAME_AA13,
-		WEPNAME_SRS,
-		WEPNAME_PZ
-	};
-	
+{	
 	SetRandomSeed(GetGameTickCount() + class + xp);
 	
 	if (class == CLASS_RECON) {
@@ -416,4 +439,36 @@ int Debug_GetSomeBotClient()
 		}
 	}
 	return 0;
+}
+
+// For primary weapons.
+// Will return false for all non primary weapons.
+stock bool IsWeaponSemiautoFire(int weapon)
+{
+	if (!IsValidEdict(weapon)) {
+		return false;
+	}
+	
+	if (GetWeaponSlot(weapon) != SLOT_PRIMARY) {
+		return false;
+	}
+	
+	decl String:wepname[18 + 1];
+	if (!GetEntityClassname(weapon, wepname, sizeof(wepname))) {
+		return false;
+	}
+	
+	int semiautos[] = {
+		WEPNAME_ZR68L,
+		WEPNAME_M41,
+		WEPNAME_M41S,
+		WEPNAME_SRS
+	};
+	
+	for (int i = 0; i < sizeof(semiautos); ++i) {
+		if (StrEqual(wepname, weapons_primary[semiautos[i]])) {
+			return true;
+		}
+	}
+	return false;
 }

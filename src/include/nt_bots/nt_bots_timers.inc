@@ -17,7 +17,7 @@ public Action Timer_Generic(Handle timer, any data)
 
 static void TimedThink(int client)
 {
-	if (!HasActivePlan(client)) {
-		MakePlan(client);
+	if (!HasActivePlan(client) && !IsNearPlannedPosition(client)) {
+		MakePlan(client, true);
 	}
 }

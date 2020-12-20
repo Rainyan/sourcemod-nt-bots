@@ -161,8 +161,13 @@ void RequestPath(int client, const float[3] from, const float[3] to)
 	from_rounded = from;
 	to_rounded = to;
 	
-	RoundVector(from_rounded, BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE);
-	RoundVector(to_rounded, BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE);
+#define DB_PATH_ROUNDING BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE_MIN
+#if DB_PATH_ROUNDING != 64
+#warning Ensure db compatibility with DB_PATH_ROUNDING
+#endif
+	
+	RoundVector(from_rounded, DB_PATH_ROUNDING);
+	RoundVector(to_rounded, DB_PATH_ROUNDING);
 	
 	TrySolution(client, from_rounded, to_rounded);
 }

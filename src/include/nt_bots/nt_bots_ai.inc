@@ -3,9 +3,6 @@
 #endif
 #define _NT_BOTS_AI_INC_
 
-static float _enemy_positions[NEO_MAX_PLAYERS + 1][NEO_MAX_PLAYERS + 1][3];
-static float _enemy_last_spotted_time[NEO_MAX_PLAYERS + 1][NEO_MAX_PLAYERS+1];
-
 enum StuckDir {
 	STUCK_DIR_NONE,
 	STUCK_DIR_NORTH,
@@ -76,6 +73,8 @@ static float lastPos[NEO_MAX_PLAYERS + 1][3];
 static int lastStuckTraceTime[NEO_MAX_PLAYERS + 1];
 static int _num_cycles_stuck[NEO_MAX_PLAYERS + 1];
 
+int _close_enough_dist[NEO_MAX_PLAYERS + 1];
+
 bool CheckIfStuck(int client)
 {
 	float currentPos[3], currentAng[3];
@@ -106,8 +105,8 @@ bool CheckIfStuck(int client)
 			TR_GetEndPosition(xyz, INVALID_HANDLE);
 		}
 		
-		if (!IsNullVector(xyz)) {
-			if (GetVectorDistance(currentPos, xyz) > BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE) {
+		if (!VectorsEqual(xyz, vec3_origin)) {
+			if (GetVectorDistance(currentPos, xyz) > _close_enough_dist[client]) {
 				return true;
 			}
 		}
@@ -128,10 +127,20 @@ int DecideVelocity(int client, bool is_stuck, const float aim_ang[3], float vel[
 {
 	int buttons = 0;
 	
+	// If currently jumping, maintain crouched jump for max climbing ability over obstacles
+	if (!(GetEntityFlags(client) & FL_ONGROUND)) {
+		buttons |= IN_DUCK;
+	}
+	
+	// Bot doesn't yet understand ladders. Just jump to dismount any accidental ladder mounts.
+	if (GetEntityMoveType(client) & MOVETYPE_LADDER) {
+		buttons |= IN_JUMP;
+	}
+	
 	if (!HasActivePlan(client)) {
 		SetFailState("DecideVelocity: No plan");
 	}
-	else if (IsNearPlannedPosition(client)) {
+	if (IsNearPlannedPosition(client)) {
 		ContinuePlan(client);
 		return buttons;
 	}
@@ -139,6 +148,15 @@ int DecideVelocity(int client, bool is_stuck, const float aim_ang[3], float vel[
 	float planned_pos[3];
 	if (!GetPlannedPosition(client, planned_pos)) {
 		return buttons;
+	}
+	else if (VectorsEqual(planned_pos, vec3_origin)) {
+		vel = vec3_origin;
+		
+		if (GetPlayerClass(client) != CLASS_SUPPORT && !IsCloaked(client) && GetEntPropFloat(client, Prop_Send, "m_fThermopticNRG") > 3) {
+			SetEntProp(client, Prop_Send, "m_iThermoptic", 1);
+		}
+		
+		return buttons | IN_DUCK;
 	}
 	
 	float client_pos[3];
@@ -173,11 +191,13 @@ int DecideVelocity(int client, bool is_stuck, const float aim_ang[3], float vel[
 		float randY = 1.0;
 		
 		float wiggle_scale = 10.0;
-		if (num_cycles_stuck <= 10000) {
-			++num_cycles_stuck;
+		if (++num_cycles_stuck <= 10000) {
+			num_cycles_stuck *= 2;
 		}
-		randX *= (num_cycles_stuck++ * GetRandomFloat(-wiggle_scale, wiggle_scale));
-		randY *= (num_cycles_stuck++ * GetRandomFloat(-wiggle_scale, wiggle_scale));
+		SetRandomSeed(GetGameTickCount() + client);
+		randX *= (num_cycles_stuck * GetRandomFloat(-wiggle_scale, wiggle_scale));
+		SetRandomSeed(GetGameTickCount() + client + 1);
+		randY *= (num_cycles_stuck * GetRandomFloat(-wiggle_scale, wiggle_scale));
 		
 		vel[0] += randX;
 		vel[1] += randY;
@@ -185,6 +205,8 @@ int DecideVelocity(int client, bool is_stuck, const float aim_ang[3], float vel[
 		if (num_cycles_stuck >= 10) {
 			float fwd_distance;
 			float right_distance;
+			// This is kind of pointlessly complex, as it seems best to always spin the same way
+			// for best chances of un-stucking. Should probably remove GetStuckDir here.
 			switch(GetStuckDir(client, client_pos, aim_ang, fwd_distance, right_distance)) {
 				case STUCK_DIR_NORTH:
 				{
@@ -196,25 +218,26 @@ int DecideVelocity(int client, bool is_stuck, const float aim_ang[3], float vel[
 				}
 				case STUCK_DIR_EAST:
 				{
-					vel[1] -= (1.0 * num_cycles_stuck);
+					vel[1] += (0.5 * num_cycles_stuck);
 				}
 				case STUCK_DIR_WEST:
 				{
-					vel[1] -= (1.0 * num_cycles_stuck);
+					vel[1] += (0.5 * num_cycles_stuck);
 				}
 			}
 			
-			if (GetVectorDistance(client_pos, planned_pos) > BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE) {
-				if (fwd_distance > 64 && right_distance > 64) {
-					SetRandomSeed(GetGameTickCount() + client);
+			if (GetVectorDistance(client_pos, planned_pos) > _close_enough_dist[client]) {
+				if (fwd_distance > 64 || right_distance > 64) {
+					SetRandomSeed(GetGameTickCount() + client + 3);
 					if (GetRandomInt(0, server_tick_rate * 10) == 0) {
 						buttons |= (IN_JUMP | IN_DUCK);
-						vel[1] += GetRandomInt(-1, 1) * 100.0;
 					}
 				}
 			}
 		}
 	}
+	
+	buttons |= (IN_RUN | IN_SPRINT);
 	
 	return buttons;
 }
@@ -305,7 +328,7 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 							}
 							else {
 								if (time_now - last_spotted[client] >= g_cReactionTime.FloatValue) {
-									if (wep_slot == SLOT_SECONDARY) {
+									if (wep_slot == SLOT_SECONDARY || IsWeaponSemiautoFire(weapon)) {
 										if (!(prev_buttons[client] & IN_ATTACK)) {
 											buttons |= IN_ATTACK;
 										}
@@ -323,14 +346,20 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 					}
 				}
 				else {
-					if (IsCloaked(client) && GetEntPropFloat(client, Prop_Send, "m_fThermopticNRG") < 5) {
-						SetEntProp(client, Prop_Send, "m_iThermoptic", 0);
-					}
-					
 					float planned_pos[3];
 					if (GetPlannedPosition(client, planned_pos, 1)) {
-						SubtractVectors(planned_pos, eye_pos, eye_dir);
-						GetVectorAngles(eye_dir, perfect_angles[client]);
+						if (VectorsEqual(planned_pos, vec3_origin)) {
+							is_stuck = false;
+							perfect_angles[client] = previous_aim[client];
+						}
+						else {
+							if (IsCloaked(client) && GetEntPropFloat(client, Prop_Send, "m_fThermopticNRG") < 5) {
+								SetEntProp(client, Prop_Send, "m_iThermoptic", 0);
+							}
+							
+							SubtractVectors(planned_pos, eye_pos, eye_dir);
+							GetVectorAngles(eye_dir, perfect_angles[client]);
+						}
 					}
 				}
 			}
@@ -394,7 +423,7 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 		static float rotate = 0.0;
 		int num_cycles_stuck = GetNumCyclesStuck(client);
 		SetRandomSeed(GetGameTickCount() + num_cycles_stuck);
-		rotate += ((GetRandomInt(0, 1) == 0) ? 1 : -1) * (0.001 * num_cycles_stuck);
+		rotate -= 0.001 * num_cycles_stuck;
 		if (rotate >= 360) {
 			rotate -= 360.0;
 		}
@@ -402,10 +431,10 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 			rotate += 360.0;
 		}
 		angles[1] += rotate;
-		
-		if (GetRandomInt(0, 30) == 0) {
-			buttons |= (IN_JUMP | IN_DUCK);
-		}
+	}
+	
+	if (buttons & IN_ATTACK) {
+		buttons &= ~(IN_SPRINT | IN_RUN);
 	}
 	
 	return buttons;
@@ -493,6 +522,10 @@ static int s_movementPlan_WriteHead[NEO_MAX_PLAYERS + 1];
 
 bool IsNearPlannedPosition(int client)
 {
+	if (_close_enough_dist[client] == 0) {
+		return false;
+	}
+	
 	float pos[3];
 	GetClientAbsOrigin(client, pos);
 	
@@ -501,7 +534,7 @@ bool IsNearPlannedPosition(int client)
 		return false;
 	}
 	
-	return GetVectorDistance(pos, planned_pos) <= BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE;
+	return GetVectorDistance(pos, planned_pos) <= _close_enough_dist[client];
 }
 
 bool GetPlannedPosition(int client, float[3] out_pos, int offset = 0)
@@ -535,6 +568,10 @@ bool HasActivePlan(int client)
 
 void ContinuePlan(int client)
 {
+	if (++s_movementPlan_Head[client] + 1 == s_movementPlan_WriteHead[client]) {
+		return;
+	}
+	
 	if (++s_movementPlan_Head[client] >= MAX_AREA_MOVES_PLANNED_FOR_FUTURE) {
 		ClearPlan(client);
 		SetFailState("ContinuePlan: PLAN STACK OVERFLOWED");

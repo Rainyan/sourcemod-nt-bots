@@ -9,11 +9,37 @@
 
 #define NEO_MAX_PLAYERS 32
 
-#define BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE 64
+// Bot will randomly decide their tolerance for waypoint distance from this range.
+// This will slightly change their pathing, offering at least some variance in encounters.
+#define BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE_MIN 64
+#define BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE_MAX 192
 
 #define BOT_TIMED_THINK_INTERVAL 5.0
 
 #define MAX_AREA_MOVES_PLANNED_FOR_FUTURE 100
+
+enum {
+	WEPNAME_GHOST = 0,
+	WEPNAME_MPN,
+	WEPNAME_SRM,
+	WEPNAME_SRM_S,
+	WEPNAME_JITTE,
+	WEPNAME_JITTESCOPED,
+	WEPNAME_ZR68C,
+	WEPNAME_ZR68L,
+	WEPNAME_ZR68S,
+	WEPNAME_SUPA7,
+	WEPNAME_M41,
+	WEPNAME_M41S,
+	WEPNAME_MX,
+	WEPNAME_MX_SILENCED,
+	WEPNAME_AA13,
+	WEPNAME_SRS,
+	WEPNAME_PZ
+};
+
+float _enemy_positions[NEO_MAX_PLAYERS + 1][NEO_MAX_PLAYERS + 1][3];
+float _enemy_last_spotted_time[NEO_MAX_PLAYERS + 1][NEO_MAX_PLAYERS + 1];
 
 const SDKHookType thinkHookType = SDKHook_PreThink;
 

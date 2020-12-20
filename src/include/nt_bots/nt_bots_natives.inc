@@ -129,7 +129,6 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse,
 			
 			if (IsBotThinkFrame(client)) {
 				buttons |= g_cBitsOverride.IntValue;
-				prev_buttons[client] = buttons;
 				
 				if (has_active_plan) {
 					buttons |= DecideVelocity(client, is_stuck, angles, vel);
@@ -138,10 +137,16 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse,
 				prev_vel[client] = vel;
 			}
 			else {
-				buttons |= prev_buttons[client];
 				vel = prev_vel[client];
+				
+				// Keep ducking if that was what we were doing on last think
+				if (prev_buttons[client] & IN_DUCK) {
+					buttons |= IN_DUCK;
+				}
 			}
 		}
+		
+		prev_buttons[client] = buttons;
 	}
 	
 	return Plugin_Continue;
@@ -151,6 +156,12 @@ public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
 	SetRandomSeed(GetGameTickCount());
 	g_cBotClass.SetInt(GetRandomInt(CLASS_RECON, CLASS_SUPPORT), true, false);
+	
+	for (int client = 1; client <= MaxClients; ++client) {
+		for (int other_client = 1; other_client <= MaxClients; ++other_client) {
+			_enemy_positions[client][other_client] = vec3_origin;
+		}
+	}
 }
 
 public void OnPlayerSpawn(Event event, const char[] name, bool dontBroadcast)
@@ -162,8 +173,16 @@ public void OnPlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 		pre_health[client] = 100;
 		bot_can_think[client] = false;
 		
+		SetRandomSeed(GetGameTickCount() + client);
+		_close_enough_dist[client] = GetRandomInt(BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE_MIN, BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE_MAX);
+		
+		FakeClientCommand(client, "-attack");
+		FakeClientCommand(client, "-jump");
+		FakeClientCommand(client, "-duck");
+		FakeClientCommand(client, "-sprint");
+		
+		CreateTimer(0.1, Timer_FreeToThink, userid, TIMER_FLAG_NO_MAPCHANGE);
 		CreateTimer(1.0, Timer_ChooseWeapons, userid, TIMER_FLAG_NO_MAPCHANGE);
-		CreateTimer(1.40, Timer_FreeToThink, userid, TIMER_FLAG_NO_MAPCHANGE);
 	}
 }
 

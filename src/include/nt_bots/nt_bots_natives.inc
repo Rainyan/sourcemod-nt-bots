@@ -5,8 +5,6 @@
 
 public void OnPluginStart()
 {
-	RegConsoleCmd("setclass", Cmd_SetClass);
-	
 	server_tick_rate = RoundToNearest(1 / GetTickInterval());
 	
 	if (!HookEventEx("player_spawn", OnPlayerSpawn, EventHookMode_Post)) {
@@ -52,13 +50,6 @@ public void OnPluginStart()
 	if (g_cBotClass == null) {
 		SetFailState("Failed to find native cvar bot_class");
 	}
-}
-
-public Action Cmd_SetClass(int client, int args)
-{
-	PrintToServer("FIRED");
-	
-	return Plugin_Continue;
 }
 
 public void OnConfigsExecuted()
@@ -124,23 +115,15 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse,
 	if (IsBotClient(client) && GetClientTeam(client) > TEAM_SPECTATOR && IsPlayerAlive(client)) {
 		if (bot_can_think[client]) {
 			bool is_stuck = CheckIfStuck(client);
+			bool has_active_plan = HasActivePlan(client);
 			
 			float next_angles[3];
-			buttons |= DecideAngles(client, is_stuck, next_angles);
-			//PrintToServer("LERP: %f", g_cMaxSpinSpeed.FloatValue);
-			if (g_cMaxSpinSpeed.IntValue != 0) {
-				VectorLerp(prev_angles[client], next_angles, angles, g_cMaxSpinSpeed.FloatValue);
+			if (has_active_plan) {
+				buttons |= DecideAngles(client, is_stuck, next_angles);
+				if (g_cMaxSpinSpeed.IntValue != 0) {
+					VectorLerp(prev_angles[client], next_angles, angles, g_cMaxSpinSpeed.FloatValue);
+				}
 			}
-			//PrintToServer("Lerping %f %f %f --> %f %f %f == %f %f %f",
-			//	prev_angles[client][0],
-			//	prev_angles[client][1],
-			//	prev_angles[client][2],
-			//	next_angles[0],
-			//	next_angles[1],
-			//	next_angles[2],
-			//	angles[0],
-			//	angles[1],
-			//	angles[2]);
 			
 			prev_angles[client] = angles;
 			
@@ -148,7 +131,7 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse,
 				buttons |= g_cBitsOverride.IntValue;
 				prev_buttons[client] = buttons;
 				
-				if (HasActivePlan(client)) {
+				if (has_active_plan) {
 					buttons |= DecideVelocity(client, is_stuck, angles, vel);
 				}
 				
@@ -166,12 +149,6 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse,
 
 public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
-	for (int client = 1; client <= MaxClients; ++client) {
-		if (IsClientInGame(client) && IsBotClient(client) && GetClientTeam(client) > TEAM_SPECTATOR) {
-			MakePlan(client);
-		}
-	}
-	
 	SetRandomSeed(GetGameTickCount());
 	g_cBotClass.SetInt(GetRandomInt(CLASS_RECON, CLASS_SUPPORT), true, false);
 }
@@ -186,7 +163,7 @@ public void OnPlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 		bot_can_think[client] = false;
 		
 		CreateTimer(1.0, Timer_ChooseWeapons, userid, TIMER_FLAG_NO_MAPCHANGE);
-		CreateTimer(14.0, Timer_FreeToThink, userid, TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(1.40, Timer_FreeToThink, userid, TIMER_FLAG_NO_MAPCHANGE);
 	}
 }
 
@@ -255,6 +232,7 @@ public Action Timer_FreeToThink(Handle timer, int userid)
 	int client = GetClientOfUserId(userid);
 	if (client != 0) {
 		bot_can_think[client] = true;
+		MakePlan(client);
 	}
 	return Plugin_Stop;
 }

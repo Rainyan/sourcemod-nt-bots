@@ -11,7 +11,7 @@
 
 #define BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE 64
 
-#define BOT_TIMED_THINK_INTERVAL 1.0
+#define BOT_TIMED_THINK_INTERVAL 5.0
 
 #define MAX_AREA_MOVES_PLANNED_FOR_FUTURE 100
 
@@ -20,8 +20,6 @@ const SDKHookType thinkHookType = SDKHook_PreThink;
 int prev_buttons[NEO_MAX_PLAYERS + 1];
 
 int pre_health[NEO_MAX_PLAYERS + 1];
-
-float target_pos[NEO_MAX_PLAYERS + 1][3];
 
 int bot_clients[NEO_MAX_PLAYERS];
 int num_bot_clients;

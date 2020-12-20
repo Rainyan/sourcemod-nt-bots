@@ -186,17 +186,18 @@ stock float fclamp(const float value, const float min, const float max)
 
 void MakePlan(int client)
 {
+	//PrintToServer("MakePlan: %d", client);
+	
 	float start_pos[3];
 	GetClientAbsOrigin(client, start_pos);
 	
 	float the_target_pos[3];
 	
 	// No ghost found, and no enemies found. Do nothing.
-	if (GetGhostPos(the_target_pos) && !GetNearestEnemy(client, the_target_pos)) {
+	if (!GetGhostPos(the_target_pos) && !GetNearestEnemy(client, the_target_pos)) {
 		return;
 	}
 	
-	ClearPlan(client);
 	RequestPath(client, start_pos, the_target_pos);
 }
 

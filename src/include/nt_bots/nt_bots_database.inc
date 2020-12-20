@@ -22,7 +22,7 @@ void ConnectToDatabase()
 public void Cb_GetSolution(Database db, DBResultSet results, const char[] error, DataPack data)
 {
 	data.Reset();
-	int bot_client = GetClientOfUserId(data.ReadCell());
+	int userid = data.ReadCell();
 	float pos_from[3];
 	float pos_to[3];
 	pos_from[0] = data.ReadFloat();
@@ -31,16 +31,16 @@ public void Cb_GetSolution(Database db, DBResultSet results, const char[] error,
 	pos_to[0] = data.ReadFloat();
 	pos_to[1] = data.ReadFloat();
 	pos_to[2] = data.ReadFloat();
-	delete data;
 	
-	if (bot_client == 0) {
-		return;
-	}
+	int bot_client = GetClientOfUserId(userid);
 	
-	if (results == null) {
-		SetFailState("Cb_GetSolution error: %s", error);
-	}
-	else {
+	// Make sure bot didn't disconnect before we got this solution
+	if (bot_client != 0) {
+		if (results == null) {
+			delete data;
+			SetFailState("Cb_GetSolution error: %s", error);
+		}
+		
 		//PrintToServer("We've got results (RowCount: %d, FieldCount: %d, more rows: %s)",
 		//	results.RowCount,
 		//	results.FieldCount,
@@ -49,8 +49,6 @@ public void Cb_GetSolution(Database db, DBResultSet results, const char[] error,
 		decl String:sql[256];
 		
 		if (results.RowCount != 0) {
-			//PrintToServer("Had actual result");
-			
 			ClearPlan(bot_client);
 			float xyz[3];
 			bool got_any_result = false;
@@ -64,10 +62,10 @@ public void Cb_GetSolution(Database db, DBResultSet results, const char[] error,
 			
 			if (got_any_result) {
 				new const String:delete_schema[] = "DELETE FROM %s WHERE from_area_x = %.1f AND from_area_y = %.1f AND from_area_z = %.1f AND \
-to_area_x = %.1f AND to_area_y = %.1f AND to_area_z = %.1f;";
+	to_area_x = %.1f AND to_area_y = %.1f AND to_area_z = %.1f;";
 				
 				Format(sql, sizeof(sql), delete_schema,
-					current_map_jobs_db_table_name,
+					current_map_solutions_db_table_name,
 					pos_from[0], pos_from[1], pos_from[2],
 					pos_to[0], pos_to[1], pos_to[2]);
 				
@@ -75,12 +73,17 @@ to_area_x = %.1f AND to_area_y = %.1f AND to_area_z = %.1f;";
 				SQL_FastQuery(_db, sql);
 				SQL_UnlockDatabase(_db);
 			}
+			else {
+				delete data;
+				SetFailState("Solution cb fired, but no result!");
+			}
 		}
 		else {
 			//PrintToServer("No result; requesting");
 			
+			// Sqlite db has constraint for duplicate rows, so we can just (re) insert
 			new const String:insert_schema[] = "INSERT INTO %s (from_area_x, from_area_y, from_area_z, \
-to_area_x, to_area_y, to_area_z) VALUES (%.1f, %.1f, %.1f, %.1f, %.1f, %.1f);";
+	to_area_x, to_area_y, to_area_z) VALUES (%.1f, %.1f, %.1f, %.1f, %.1f, %.1f);";
 			
 			Format(sql, sizeof(sql), insert_schema,
 				current_map_jobs_db_table_name,
@@ -91,35 +94,48 @@ to_area_x, to_area_y, to_area_z) VALUES (%.1f, %.1f, %.1f, %.1f, %.1f, %.1f);";
 			SQL_FastQuery(_db, sql);
 			SQL_UnlockDatabase(_db);
 			
-			//if (!AddPendingSolution(area_from, area_to)) {
-			//	SetFailState("Solution queue filled up! This shouldn't happen.");
-			//}
+			CreateTimer(0.5, Timer_DbTryAgain, data, TIMER_FLAG_NO_MAPCHANGE);
+			return;
 		}
 	}
+	
+	delete data;
+}
+
+public Action Timer_DbTryAgain(Handle timer, DataPack data)
+{
+	data.Reset();
+	int bot_client = GetClientOfUserId(data.ReadCell());
+	float pos_from[3];
+	float pos_to[3];
+	pos_from[0] = data.ReadFloat();
+	pos_from[1] = data.ReadFloat();
+	pos_from[2] = data.ReadFloat();
+	pos_to[0] = data.ReadFloat();
+	pos_to[1] = data.ReadFloat();
+	pos_to[2] = data.ReadFloat();
+	
+	if (bot_client == 0) {
+		delete data;
+	}
+	else {
+		decl String:sql[256];
+		
+		new const String:select_schema[] = "SELECT * FROM %s WHERE from_area_x = %.1f AND \
+	from_area_y = %.1f AND from_area_z = %.1f AND to_area_x = %.1f AND to_area_y = %.1f AND \
+	to_area_z = %.1f;";
+		Format(sql, sizeof(sql), select_schema, current_map_solutions_db_table_name,
+			pos_from[0], pos_from[1], pos_from[2],
+			pos_to[0], pos_to[1], pos_to[2]);
+		
+		_db.Query(Cb_GetSolution, sql, data);	
+	}
+	
+	return Plugin_Stop;
 }
 
 void TrySolution(int bot_client, const float[3] pos_from, const float[3] pos_to)
 {
-	decl String:sql[256];
-	
-	new const String:select_schema[] = "SELECT * FROM %s WHERE from_area_x = %.1f AND \
-from_area_y = %.1f AND from_area_z = %.1f AND to_area_x = %.1f AND to_area_y = %.1f AND \
-to_area_z = %.1f;";
-	Format(sql, sizeof(sql), select_schema, current_map_solutions_db_table_name,
-		pos_from[0], pos_from[1], pos_from[2],
-		pos_to[0], pos_to[1], pos_to[2]);
-	
-	//int bot_client = 0;
-	//for (int client = 1; client <= MaxClients; ++client) {
-	//	if (IsClientInGame(client) && IsFakeClient(client)) {
-	//		bot_client = client;
-	//		break;
-	//	}
-	//}
-	//if (bot_client == 0) {
-	//	SetFailState("Failed to find the bot!");
-	//}
-	
 	DataPack data = new DataPack();
 	data.WriteCell(GetClientUserId(bot_client));
 	data.WriteFloat(pos_from[0]);
@@ -128,11 +144,17 @@ to_area_z = %.1f;";
 	data.WriteFloat(pos_to[0]);
 	data.WriteFloat(pos_to[1]);
 	data.WriteFloat(pos_to[2]);
-	_db.Query(Cb_GetSolution, sql, data);
+	
+	Timer_DbTryAgain(INVALID_HANDLE, data);
 }
 
 void RequestPath(int client, const float[3] from, const float[3] to)
 {
+	//PrintToServer("RequestPath: %d, (%f %f %f), (%f %f %f)",
+	//	client,
+	//	from[0], from[1], from[2],
+	//	to[0], to[1], to[2]);
+	
 	float from_rounded[3];
 	float to_rounded[3];
 	

@@ -172,7 +172,7 @@ int DecideVelocity(int client, bool is_stuck, const float aim_ang[3], float vel[
 		float randX = 1.0;
 		float randY = 1.0;
 		
-		float wiggle_scale = 1.0;
+		float wiggle_scale = 10.0;
 		if (num_cycles_stuck <= 10000) {
 			++num_cycles_stuck;
 		}
@@ -207,7 +207,7 @@ int DecideVelocity(int client, bool is_stuck, const float aim_ang[3], float vel[
 			if (GetVectorDistance(client_pos, planned_pos) > BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE) {
 				if (fwd_distance > 64 && right_distance > 64) {
 					SetRandomSeed(GetGameTickCount() + client);
-					if (GetRandomInt(0, server_tick_rate) == 0) {
+					if (GetRandomInt(0, server_tick_rate * 10) == 0) {
 						buttons |= (IN_JUMP | IN_DUCK);
 						vel[1] += GetRandomInt(-1, 1) * 100.0;
 					}
@@ -328,7 +328,7 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 					}
 					
 					float planned_pos[3];
-					if (GetPlannedPosition(client, planned_pos)) {
+					if (GetPlannedPosition(client, planned_pos, 1)) {
 						SubtractVectors(planned_pos, eye_pos, eye_dir);
 						GetVectorAngles(eye_dir, perfect_angles[client]);
 					}
@@ -488,9 +488,8 @@ bool IsBotThinkFrame(int client)
 }
 
 static float s_movementPlan[NEO_MAX_PLAYERS + 1][MAX_AREA_MOVES_PLANNED_FOR_FUTURE][3];
-static int s_movementPlanWriteStack[NEO_MAX_PLAYERS + 1] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-static int s_movementPlanReadStack[NEO_MAX_PLAYERS + 1] = { 0 };
-static int bot_clients_head;
+static int s_movementPlan_Head[NEO_MAX_PLAYERS + 1];
+static int s_movementPlan_WriteHead[NEO_MAX_PLAYERS + 1];
 
 bool IsNearPlannedPosition(int client)
 {
@@ -511,50 +510,67 @@ bool GetPlannedPosition(int client, float[3] out_pos, int offset = 0)
 		return false;
 	}
 	
-	if (s_movementPlanReadStack[client] + offset >= MAX_AREA_MOVES_PLANNED_FOR_FUTURE) {
-		PrintToServer("Failed to get ahead pos");
+	int index = s_movementPlan_Head[client] + offset;
+	
+	if (index >= MAX_AREA_MOVES_PLANNED_FOR_FUTURE) {
+		PrintToServer("!!! Failed to get ahead pos");
 		return false;
 	}
 	
-	out_pos = s_movementPlan[client][s_movementPlanReadStack[client] + offset];
+	out_pos = s_movementPlan[client][index];
 	
 	return true;
 }
 
 void ClearPlan(int client)
 {
-	s_movementPlanWriteStack[client] = -1;
-	s_movementPlanReadStack[client] = 0;
+	s_movementPlan_Head[client] = -1;
+	s_movementPlan_WriteHead[client] = 0;
 }
 
 bool HasActivePlan(int client)
 {
-	return s_movementPlanWriteStack[client] != -1;
+	return s_movementPlan_Head[client] != -1;
 }
 
 void ContinuePlan(int client)
 {
-	--s_movementPlanWriteStack[client];
-	if (s_movementPlanWriteStack[client] < -1) {
-		s_movementPlanWriteStack[client] = -1;
+	if (++s_movementPlan_Head[client] >= MAX_AREA_MOVES_PLANNED_FOR_FUTURE) {
+		ClearPlan(client);
+		SetFailState("ContinuePlan: PLAN STACK OVERFLOWED");
 	}
-	++s_movementPlanReadStack[client];
 }
 
 bool PlanMove(int client, const float[3] planned_pos)
 {
-	if (s_movementPlanWriteStack[client] >= MAX_AREA_MOVES_PLANNED_FOR_FUTURE) {
+	//PrintToServer("Planning move for client %d", client);
+	
+	if (s_movementPlan_WriteHead[client] >= MAX_AREA_MOVES_PLANNED_FOR_FUTURE) {
 		ClearPlan(client);
-		SetFailState("PLAN STACK OVERFLOWED");
+		SetFailState("PlanMove: PLAN STACK OVERFLOWED (%d)", s_movementPlan_WriteHead[client]);
 		return false;
 	}
 	
-	float pos[3];
-	pos = planned_pos;
-	s_movementPlan[client][++s_movementPlanWriteStack[client]] = pos;
-
+	s_movementPlan[client][s_movementPlan_WriteHead[client]][0] = planned_pos[0];
+	s_movementPlan[client][s_movementPlan_WriteHead[client]][1] = planned_pos[1];
+	s_movementPlan[client][s_movementPlan_WriteHead[client]][2] = planned_pos[2];
+	
+	//PrintToServer("Wrote coords to head %d: (%f %f %f)",
+	//	s_movementPlan_WriteHead[client],
+	//	s_movementPlan[client][s_movementPlan_WriteHead[client]][0],
+	//	s_movementPlan[client][s_movementPlan_WriteHead[client]][1],
+	//	s_movementPlan[client][s_movementPlan_WriteHead[client]][2]);
+	
+	++s_movementPlan_WriteHead[client];
+	
+	if (s_movementPlan_Head[client] == -1) {
+		s_movementPlan_Head[client] = 0;
+	}
+	
 	return true;
 }
+
+static int bot_clients_head;
 
 void SetNextBotThinkerHead()
 {

@@ -11,6 +11,8 @@ public Action Cmd_OrderPos(int client, int argc)
 		return Plugin_Handled;
 	}
 	
+	float target_pos[3];
+	
 	if (argc == 3) {
 		decl String:arg[4];
 		for (int coord = 0; coord < 3; ++coord) {
@@ -18,7 +20,7 @@ public Action Cmd_OrderPos(int client, int argc)
 				ReplyToCommand(client, "%s Unknown position", BOTS_MSG_PREFIX);
 				return Plugin_Handled;
 			} else {
-				target_pos[bot_client][coord] = StringToFloat(arg);
+				target_pos[coord] = StringToFloat(arg);
 			}
 		}
 	} else {
@@ -37,7 +39,7 @@ none to raycast from position.", BOTS_MSG_PREFIX);
 			
 			TR_TraceRayFilter(eyePos, eyeAng, MASK_OPAQUE, RayType_Infinite, DidNotHitSelf, client);
 			if (TR_DidHit() /*&& !TR_AllSolid()*/) {
-				TR_GetEndPosition(target_pos[bot_client]);
+				TR_GetEndPosition(target_pos);
 			} else {
 				ReplyToCommand(client, "%s Indeterminate trace", BOTS_MSG_PREFIX);
 				return Plugin_Handled;
@@ -45,7 +47,10 @@ none to raycast from position.", BOTS_MSG_PREFIX);
 		}
 	}
 	
-	ClearPlan(client);
+	ClearPlan(bot_client);
+	float bot_pos[3];
+	GetClientAbsOrigin(bot_client, bot_pos);
+	RequestPath(bot_client, bot_pos, target_pos);
 	
 	ReplyToCommand(client, "%s Moving to %f, %f, %f", BOTS_MSG_PREFIX,
 		target_pos[0], target_pos[1], target_pos[2]);

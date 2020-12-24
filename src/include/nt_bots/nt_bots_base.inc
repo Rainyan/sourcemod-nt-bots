@@ -547,5 +547,5 @@ void SoftSlayAllBots()
 
 stock bool IsGameModeKillConfirmed()
 {
-	return true;//g_cIsKillConfirmedMode == null ? false : g_cIsKillConfirmedMode.BoolValue;
+	return g_cAlwaysKillConfirmedMode.BoolValue || ((g_cIsKillConfirmedMode == null) ? false : g_cIsKillConfirmedMode.BoolValue);
 }

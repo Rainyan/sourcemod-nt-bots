@@ -51,6 +51,9 @@ public void OnPluginStart()
 	g_cDrawDebugBeams = CreateConVar("sm_nt_bots_debug_draw_beams", "0.0", "Whether to draw pathing routes etc. using laser beam effects. Debug cvar.",
 		_, true, 0.0, true, 1.0);
 	
+	g_cAlwaysKillConfirmedMode = CreateConVar("sm_nt_bots_debug_always_killconfirmed_mode", "0.0", "Whether to always use the TDM/\"Kill Confirmed\" behaviour rules. Debug cvar.",
+		_, true, 0.0, true, 1.0);
+	
 	g_cBotClass = FindConVar("bot_class");
 	if (g_cBotClass == null) {
 		SetFailState("Failed to find native cvar bot_class");

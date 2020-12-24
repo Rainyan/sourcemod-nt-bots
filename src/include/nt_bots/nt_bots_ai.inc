@@ -191,11 +191,11 @@ int DecideVelocity(int client, bool is_stuck, const float aim_ang[3], float vel[
 	NormalizeVector(vel, vel);
 	ScaleVector(vel, 1000.0);
 	
-#if(1)
-	TE_SetupBeamPoints(client_pos, planned_pos, rayIndex, rayIndex,
-		0, 1, 1.0, 2.0, 2.5, 5, 1.0, ray_color, 5);
-	TE_SendToAll();
-#endif
+	if (g_cDrawDebugBeams.BoolValue) {
+		TE_SetupBeamPoints(client_pos, planned_pos, rayIndex, rayIndex,
+			0, 1, 1.0, 2.0, 2.5, 5, 1.0, ray_color, 5);
+		TE_SendToAll();
+	}
 	
 	if (is_stuck) {
 		int num_cycles_stuck = GetNumCyclesStuck(client);
@@ -324,15 +324,16 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 						
 						SubtractVectors(_enemy_positions[client][last_seen_client], eye_pos, target_dir);
 						NormalizeVector(target_dir, target_dir);
-	#if(0)
-						float ray_pos[3];
-						TR_TraceRay(eye_pos, angles, MASK_OPAQUE, RayType_Infinite);
-						TR_GetEndPosition(ray_pos);
 						
-						TE_SetupBeamPoints(eye_pos, ray_pos, rayIndex, rayIndex,
-							0, 1, 1.0, 2.0, 2.5, 5, 1.0, ray_color, 5);
-						TE_SendToAll();
-	#endif
+						if (g_cDrawDebugBeams.BoolValue) {
+							float ray_pos[3];
+							TR_TraceRay(eye_pos, angles, MASK_OPAQUE, RayType_Infinite);
+							TR_GetEndPosition(ray_pos);
+							
+							TE_SetupBeamPoints(eye_pos, ray_pos, rayIndex, rayIndex,
+								0, 1, 1.0, 2.0, 2.5, 5, 1.0, ray_color, 5);
+							TE_SendToAll();
+						}
 	
 						if (last_seen_client != -1 && (time_now - last_spotted_time) < g_cSuppressFireTime.FloatValue) {
 							GetVectorAngles(target_dir, perfect_angles[client]);

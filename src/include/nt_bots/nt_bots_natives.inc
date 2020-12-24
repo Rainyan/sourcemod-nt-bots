@@ -48,6 +48,9 @@ public void OnPluginStart()
 	g_cMaxSpinSpeed = CreateConVar("sm_nt_bots_max_spin_speed", "1.0", "Absolute maximum speed scaler for how fast the bot can spin around. Set to 0 to disable limiting.",
 		_, true, 0.0, true, 1.0);
 	
+	g_cDrawDebugBeams = CreateConVar("sm_nt_bots_debug_draw_beams", "0.0", "Whether to draw pathing routes etc. using laser beam effects. Debug cvar.",
+		_, true, 0.0, true, 1.0);
+	
 	g_cBotClass = FindConVar("bot_class");
 	if (g_cBotClass == null) {
 		SetFailState("Failed to find native cvar bot_class");

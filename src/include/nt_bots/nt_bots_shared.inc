@@ -74,6 +74,7 @@ ConVar g_cNoTarget = null;
 ConVar g_cMaxSpinSpeed = null;
 ConVar g_cBotClass = null;
 ConVar g_cIsKillConfirmedMode = null;
+ConVar g_cDrawDebugBeams = null;
 
 int rayIndex = 0;
 

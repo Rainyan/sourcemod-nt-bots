@@ -19,10 +19,24 @@ void ConnectToDatabase()
 	}
 }
 
+static char cb_sql[256];
+
+public void Cb_FireAndForget(Database db, DBResultSet results, const char[] error, any data)
+{
+}
+
 public void Cb_GetSolution(Database db, DBResultSet results, const char[] error, DataPack data)
 {
 	data.Reset();
+	
 	int userid = data.ReadCell();
+	int bot_client = GetClientOfUserId(userid);
+	// Make sure bot didn't disconnect before we got this solution
+	if (bot_client == 0) {
+		delete data;
+		return;
+	}
+	
 	float pos_from[3];
 	float pos_to[3];
 	pos_from[0] = data.ReadFloat();
@@ -32,71 +46,60 @@ public void Cb_GetSolution(Database db, DBResultSet results, const char[] error,
 	pos_to[1] = data.ReadFloat();
 	pos_to[2] = data.ReadFloat();
 	
-	int bot_client = GetClientOfUserId(userid);
+	if (results == null) {
+		delete data;
+		SetFailState("Cb_GetSolution error: %s", error);
+	}
 	
-	// Make sure bot didn't disconnect before we got this solution
-	if (bot_client != 0) {
-		if (results == null) {
-			delete data;
-			SetFailState("Cb_GetSolution error: %s", error);
+	//PrintToServer("We've got results (RowCount: %d, FieldCount: %d, more rows: %s)",
+	//	results.RowCount,
+	//	results.FieldCount,
+	//	(results.MoreRows ? "yes" : "no"));
+	
+	if (results.RowCount != 0) {
+		ClearPlan(bot_client);
+		float xyz[3];
+		bool got_any_result = false;
+		while (results.FetchRow()) {
+			xyz[0] = results.FetchFloat(7);
+			xyz[1] = results.FetchFloat(8);
+			xyz[2] = results.FetchFloat(9);
+			PlanMove(bot_client, xyz);
+			got_any_result = true;
 		}
 		
-		//PrintToServer("We've got results (RowCount: %d, FieldCount: %d, more rows: %s)",
-		//	results.RowCount,
-		//	results.FieldCount,
-		//	(results.MoreRows ? "yes" : "no"));
-		
-		decl String:sql[256];
-		
-		if (results.RowCount != 0) {
-			ClearPlan(bot_client);
-			float xyz[3];
-			bool got_any_result = false;
-			while (results.FetchRow()) {
-				xyz[0] = results.FetchFloat(7);
-				xyz[1] = results.FetchFloat(8);
-				xyz[2] = results.FetchFloat(9);
-				PlanMove(bot_client, xyz);
-				got_any_result = true;
-			}
+		if (got_any_result) {
+			new const String:delete_schema[] = "DELETE FROM %s WHERE from_area_x = %.1f AND from_area_y = %.1f AND from_area_z = %.1f AND \
+to_area_x = %.1f AND to_area_y = %.1f AND to_area_z = %.1f;";
 			
-			if (got_any_result) {
-				new const String:delete_schema[] = "DELETE FROM %s WHERE from_area_x = %.1f AND from_area_y = %.1f AND from_area_z = %.1f AND \
-	to_area_x = %.1f AND to_area_y = %.1f AND to_area_z = %.1f;";
-				
-				Format(sql, sizeof(sql), delete_schema,
-					current_map_solutions_db_table_name,
-					pos_from[0], pos_from[1], pos_from[2],
-					pos_to[0], pos_to[1], pos_to[2]);
-				
-				SQL_LockDatabase(_db);
-				SQL_FastQuery(_db, sql);
-				SQL_UnlockDatabase(_db);
-			}
-			else {
-				delete data;
-				SetFailState("Solution cb fired, but no result!");
-			}
-		}
-		else {
-			//PrintToServer("No result; requesting");
-			
-			// Sqlite db has constraint for duplicate rows, so we can just (re) insert
-			new const String:insert_schema[] = "INSERT INTO %s (from_area_x, from_area_y, from_area_z, \
-	to_area_x, to_area_y, to_area_z) VALUES (%.1f, %.1f, %.1f, %.1f, %.1f, %.1f);";
-			
-			Format(sql, sizeof(sql), insert_schema,
-				current_map_jobs_db_table_name,
+			Format(cb_sql, sizeof(cb_sql), delete_schema,
+				current_map_solutions_db_table_name,
 				pos_from[0], pos_from[1], pos_from[2],
 				pos_to[0], pos_to[1], pos_to[2]);
 			
-			SQL_LockDatabase(_db);
-			SQL_FastQuery(_db, sql);
-			SQL_UnlockDatabase(_db);
-			
-			CreateTimer(0.5, Timer_DbTryAgain, data, TIMER_FLAG_NO_MAPCHANGE);
-			return;
+			_db.Query(Cb_FireAndForget, cb_sql);
 		}
+		else {
+			delete data;
+			SetFailState("Solution cb fired, but no result!");
+		}
+	}
+	else {
+		//PrintToServer("No result; requesting");
+		
+		// Sqlite db has constraint for duplicate rows, so we can just (re) insert
+		new const String:insert_schema[] = "INSERT INTO %s (from_area_x, from_area_y, from_area_z, \
+to_area_x, to_area_y, to_area_z) VALUES (%.1f, %.1f, %.1f, %.1f, %.1f, %.1f);";
+		
+		Format(cb_sql, sizeof(cb_sql), insert_schema,
+			current_map_jobs_db_table_name,
+			pos_from[0], pos_from[1], pos_from[2],
+			pos_to[0], pos_to[1], pos_to[2]);
+		
+		_db.Query(Cb_FireAndForget, cb_sql);
+		
+		CreateTimer(0.5, Timer_DbTryAgain, data, TIMER_FLAG_NO_MAPCHANGE);
+		return;
 	}
 	
 	delete data;
@@ -128,7 +131,7 @@ public Action Timer_DbTryAgain(Handle timer, DataPack data)
 			pos_from[0], pos_from[1], pos_from[2],
 			pos_to[0], pos_to[1], pos_to[2]);
 		
-		_db.Query(Cb_GetSolution, sql, data);	
+		_db.Query(Cb_GetSolution, sql, data);
 	}
 	
 	return Plugin_Stop;

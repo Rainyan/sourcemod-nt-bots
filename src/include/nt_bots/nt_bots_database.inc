@@ -163,10 +163,12 @@ void RequestPath(int client, const float[3] from, const float[3] to)
 	
 	from_rounded = from;
 	to_rounded = to;
-	
+
 #define DB_PATH_ROUNDING BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE_MIN
+#if(0)
 #if DB_PATH_ROUNDING != 64
 #warning Ensure db compatibility with DB_PATH_ROUNDING
+#endif
 #endif
 	
 	RoundVector(from_rounded, DB_PATH_ROUNDING);

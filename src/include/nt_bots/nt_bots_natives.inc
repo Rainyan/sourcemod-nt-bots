@@ -52,6 +52,8 @@ public void OnPluginStart()
 	if (g_cBotClass == null) {
 		SetFailState("Failed to find native cvar bot_class");
 	}
+	
+	g_cIsKillConfirmedMode = FindConVar("nt_tdm_enabled");
 }
 
 public void OnConfigsExecuted()
@@ -116,6 +118,14 @@ public void OnMapStart()
 		if (IsClientInGame(client) && IsBotClient(client)) {
 			BotSetup(client);
 		}
+	}
+}
+
+public void OnMapEnd()
+{
+	if (g_hGenericTimer != null) {
+		delete g_hGenericTimer;
+		g_hGenericTimer = null;
 	}
 }
 

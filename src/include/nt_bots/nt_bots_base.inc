@@ -188,6 +188,10 @@ void MakePlan(int client, bool hunt = false)
 {
 	//PrintToServer("MakePlan: %d", client);
 	
+	if (IsGameModeKillConfirmed()) {
+		hunt = true;
+	}
+	
 	float start_pos[3];
 	GetClientAbsOrigin(client, start_pos);
 	
@@ -244,6 +248,10 @@ bool IsWeaponGhost(int weapon)
 
 bool GetGhostPos(float[3] out_pos)
 {
+	if (IsGameModeKillConfirmed()) {
+		return false;
+	}
+	
 	char name[12 + 1];
 	
 	for (int client = 1; client <= MaxClients; ++client) {
@@ -306,6 +314,35 @@ bool GetNearestSpottedEnemy(int self, float[3] out_pos)
 	
 	if (latest_spotted != -1) {
 		out_pos = _enemy_positions[self][latest_spotted];
+	}
+	// If we haven't seen any enemies recently, and it's the TDM mode,
+	// the bot should cheat a bit and head for the nearest enemy,
+	// so that they're moving to relevant positions in those maps.
+	else if (IsGameModeKillConfirmed()) {
+		int nearest_client = -1;
+		float nearest_distance;
+		
+		float self_origin[3]; float other_origin[3];
+		GetClientAbsOrigin(self, self_origin);
+		
+		for (int client = 1; client <= MaxClients; ++client) {
+			if (!IsClientInGame(client) || !IsPlayerAlive(client) || GetClientTeam(client) == GetClientTeam(self)) {
+				continue;
+			}
+			
+			GetClientAbsOrigin(client, other_origin);
+			
+			float distance = GetVectorDistance(self_origin, other_origin);
+			if (nearest_client == -1 || distance < nearest_distance) {
+				nearest_client = client;
+				nearest_distance = distance;
+			}
+		}
+		
+		if (nearest_client != -1) {
+			GetClientAbsOrigin(nearest_client, out_pos);
+			latest_spotted = nearest_client;
+		}
 	}
 	
 	return latest_spotted != -1;
@@ -506,4 +543,9 @@ void SoftSlayAllBots()
 		FakeClientCommand(client, "kill");
 		SetPlayerXP(client, pre_slay_xp);
 	}
+}
+
+stock bool IsGameModeKillConfirmed()
+{
+	return true;//g_cIsKillConfirmedMode == null ? false : g_cIsKillConfirmedMode.BoolValue;
 }

@@ -18,10 +18,20 @@ public Action Timer_Generic(Handle timer, any data)
 }
 
 static void TimedThink(int client)
-{	
-	if (EnemyHasGhost(client) || (!HasActivePlan(client) && !IsNearPlannedPosition(client))) {
-		ClearPlan(client);
-		MakePlan(client, true);
+{
+	if (IsGameModeKillConfirmed()) {
+		if (GetGameTime() - _enemy_last_spotted_time_single[client] > 5) {
+			MakePlan(client, true);
+		}
+		else {
+			PrintToServer("Not yet: %f", GetGameTime() - _enemy_last_spotted_time_single[client]);
+		}
+	}
+	else {
+		if (EnemyHasGhost(client) || (!HasActivePlan(client) && !IsNearPlannedPosition(client))) {
+			ClearPlan(client);
+			MakePlan(client, true);
+		}
 	}
 	
 	bot_last_took_dmg_from[client] = 0;

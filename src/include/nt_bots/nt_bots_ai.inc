@@ -14,7 +14,8 @@ enum StuckDir {
 void NoticeEnemy(int bot_client, int other_client, const float[3] enemy_pos)
 {
 	_enemy_positions[bot_client][other_client] = enemy_pos;
-	_enemy_last_spotted_time[bot_client][other_client] = GetGameTime();
+	_enemy_last_spotted_time_single[bot_client] = GetGameTime();
+	_enemy_last_spotted_time[bot_client][other_client] = _enemy_last_spotted_time_single[bot_client];
 }
 
 public bool Cb_TraceEnumerator(int hit_entity, int other_client)

@@ -11,10 +11,10 @@
 
 // Bot will randomly decide their tolerance for waypoint distance from this range.
 // This will slightly change their pathing, offering at least some variance in encounters.
-#define BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE_MIN 64
-#define BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE_MAX 128
+#define BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE_MIN 32
+#define BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE_MAX 64
 
-#define BOT_TIMED_THINK_INTERVAL 5.0
+#define BOT_TIMED_THINK_INTERVAL 10.0
 
 #define MAX_AREA_MOVES_PLANNED_FOR_FUTURE 100
 
@@ -42,6 +42,7 @@ enum {
 
 float _enemy_positions[NEO_MAX_PLAYERS + 1][NEO_MAX_PLAYERS + 1][3];
 float _enemy_last_spotted_time[NEO_MAX_PLAYERS + 1][NEO_MAX_PLAYERS + 1];
+float _enemy_last_spotted_time_single[NEO_MAX_PLAYERS + 1];
 float round_start_time;
 
 const SDKHookType thinkHookType = SDKHook_PreThink;
@@ -72,6 +73,7 @@ ConVar g_cBotAimSpeed = null;
 ConVar g_cNoTarget = null;
 ConVar g_cMaxSpinSpeed = null;
 ConVar g_cBotClass = null;
+ConVar g_cIsKillConfirmedMode = null;
 
 int rayIndex = 0;
 

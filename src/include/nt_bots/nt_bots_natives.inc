@@ -179,11 +179,13 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse,
 			bool is_stuck = CheckIfStuck(client);
 			bool has_active_plan = HasActivePlan(client);
 			
-			//PrintToServer("%d THINKING (is_stuck: %d, has_active_plan: %d)",
-			//	client,
-			//	is_stuck,
-			//	has_active_plan
-			//	);
+#if(0)
+			PrintToServer("%d THINKING (is_stuck: %d, has_active_plan: %d)",
+				client,
+				is_stuck,
+				has_active_plan
+				);
+#endif
 			
 			float next_angles[3];
 			if (has_active_plan) {
@@ -229,30 +231,38 @@ public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 	RoundStartActions();
 }
 
-void RoundStartActions()
+void RoundStartActions(int target_client = 0)
 {
 	round_start_time = GetGameTime();
 	
-	for (int client = 1; client <= MaxClients; ++client) {
-		_enemy_last_spotted_time_single[client] = 0.0;
-		pre_health[client] = 100;
-		bot_can_think[client] = false;
-		bot_last_took_dmg_from[client] = 0;
-		
-		for (int other_client = 1; other_client <= MaxClients; ++other_client) {
-			_enemy_positions[client][other_client] = vec3_origin;
-			_enemy_last_spotted_time[client][other_client] = 0.0;
+	if (target_client == 0) {
+		for (int client = 1; client <= MaxClients; ++client) {
+			_enemy_last_spotted_time_single[client] = 0.0;
+			pre_health[client] = 100;
+			bot_can_think[client] = false;
+			bot_last_took_dmg_from[client] = 0;
+			
+			for (int other_client = 1; other_client <= MaxClients; ++other_client) {
+				_enemy_positions[client][other_client] = vec3_origin;
+				_enemy_last_spotted_time[client][other_client] = 0.0;
+			}
 		}
+		
+		if (g_hGenericTimer != null) {
+			delete g_hGenericTimer;
+			g_hGenericTimer = null;
+		}
+		g_hGenericTimer = CreateTimer(BOT_TIMED_THINK_INTERVAL, Timer_Generic, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	}
+	else {
+		_enemy_last_spotted_time_single[target_client] = 0.0;
+		pre_health[target_client] = 100;
+		bot_can_think[target_client] = true;
+		bot_last_took_dmg_from[target_client] = 0;
 	}
 	
 	SetRandomSeed(GetGameTickCount());
 	g_cBotClass.SetInt(GetRandomInt(CLASS_RECON, CLASS_SUPPORT), true, false);
-	
-	if (g_hGenericTimer != null) {
-		delete g_hGenericTimer;
-		g_hGenericTimer = null;
-	}
-	g_hGenericTimer = CreateTimer(BOT_TIMED_THINK_INTERVAL, Timer_Generic, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 }
 
 public void OnPlayerSpawn(Event event, const char[] name, bool dontBroadcast)
@@ -273,8 +283,12 @@ public void OnPlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 		// Join alpha squad!
 		SetPlayerStar(client, 1);
 		
-		CreateTimer(0.1, Timer_FreeToThink, userid, TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(1.0, Timer_FreeToThink, userid, TIMER_FLAG_NO_MAPCHANGE);
 		CreateTimer(1.0, Timer_ChooseWeapons, userid, TIMER_FLAG_NO_MAPCHANGE);
+		
+		if (IsGameModeKillConfirmed()) {
+			RoundStartActions(client);
+		}
 	}
 }
 
@@ -315,6 +329,7 @@ public Action Timer_FreeToThink(Handle timer, int userid)
 {
 	int client = GetClientOfUserId(userid);
 	if (client != 0) {
+		//PrintToServer("Timer_FreeToThink %d", client);
 		bot_can_think[client] = true;
 		MakePlan(client);
 	}

@@ -186,6 +186,8 @@ stock float fclamp(const float value, const float min, const float max)
 
 void MakePlan(int client, bool hunt = false)
 {
+	//PrintToServer("%d MakePlan", client);
+	
 	if (IsGameModeKillConfirmed()) {
 		hunt = true;
 	}
@@ -227,6 +229,9 @@ void MakePlan(int client, bool hunt = false)
 				// No ghost found, and no enemies found. Do nothing.
 				return;
 			}
+		}
+		else {
+			//PrintToServer("GOT ENEMY: %f %f %f", the_target_pos[0], the_target_pos[1], the_target_pos[2]);
 		}
 	}
 	

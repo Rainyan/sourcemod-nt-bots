@@ -2,7 +2,7 @@
 
 #include <sourcemod>
 
-#define PLUGIN_VERSION "0.1"
+#define PLUGIN_VERSION "0.2"
 
 public Plugin myinfo = {
 	name = "NT Dynamic Bot Spawner",
@@ -30,6 +30,9 @@ public void OnPluginStart()
 
 public void OnMapStart()
 {
+	// Bots first spawn with this model, and it's possible the game hasn't precached it before we want to spawn a bot.
+	PrecacheModel("models/player/vip.mdl", true);
+	
 	CreateTimer(1.0, Timer_CheckBotAmount, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 }
 

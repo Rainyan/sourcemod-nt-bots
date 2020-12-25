@@ -186,9 +186,14 @@ stock float fclamp(const float value, const float min, const float max)
 
 void MakePlan(int client, bool hunt = false)
 {
+	// Too busy fighting
+	if (GetGameTime() - _enemy_last_spotted_time_single[client] < 1) {
+		return;
+	}
+	
 	//PrintToServer("%d MakePlan", client);
 	
-	if (IsGameModeKillConfirmed() || AreOnlyBotsAlive()) {
+	if (IsGameModeKillConfirmed()) {
 		hunt = true;
 	}
 	

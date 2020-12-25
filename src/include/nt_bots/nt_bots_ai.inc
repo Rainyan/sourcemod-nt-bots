@@ -357,7 +357,7 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 				}
 				else {
 					float planned_pos[3];
-					if (GetPlannedPosition(client, planned_pos, 2)) {
+					if (GetPlannedPosition(client, planned_pos) || GetPlannedPosition(client, planned_pos, 1)) {
 						if (VectorsEqual(planned_pos, vec3_origin)) {
 							is_stuck = false;
 							perfect_angles[client] = previous_aim[client];

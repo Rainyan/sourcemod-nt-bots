@@ -19,7 +19,10 @@ public Action Timer_Generic(Handle timer, any data)
 
 static void TimedThink(int client)
 {
-	if (IsGameModeKillConfirmed()) {
+	if (AreOnlyBotsAlive()) {
+		MakePlan(client, true);
+	}
+	else if (IsGameModeKillConfirmed()) {
 		if (GetGameTime() - _enemy_last_spotted_time_single[client] > g_cReactionTime.FloatValue) {
 			for (int other_client = 1; other_client <= MaxClients; ++other_client) {
 				_enemy_last_spotted_time[client][other_client] = 0.0;

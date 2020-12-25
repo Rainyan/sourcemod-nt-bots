@@ -32,8 +32,6 @@ public void OnMapStart()
 {
 	// Bots first spawn with this model, and it's possible the game hasn't precached it before we want to spawn a bot.
 	PrecacheModel("models/player/vip.mdl", true);
-	
-	CreateTimer(1.0, Timer_CheckBotAmount, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 }
 
 public void OnConfigsExecuted()
@@ -51,10 +49,9 @@ public void OnConfigsExecuted()
 				++_num_bots;
 			}
 		}
-		CheckBotAmount();
-		
 		first_launch = false;
 	}
+	CreateTimer(1.0, Timer_CheckBotAmount, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 }
 
 public void OnClientPutInServer(int client)

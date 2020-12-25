@@ -105,7 +105,7 @@ void SpawnNewBot_1()
 	// so it should be acceptable.
 	SetCommandFlags("bot_add", GetCommandFlags("bot_add") & ~FCVAR_CHEAT);
 	CreateTimer(0.0, Timer_SpawnNewBot2, _, TIMER_FLAG_NO_MAPCHANGE); // guaranteed accurate only up to 100 ms, so we do timers of 0 and 300 ms
-	CreateTimer(0.3, Timer_SpawnNewBot3, _, TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(0.3, Timer_SpawnNewBot3);
 }
 
 public Action Timer_SpawnNewBot2(Handle timer)

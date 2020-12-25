@@ -23,13 +23,9 @@ static void TimedThink(int client)
 		if (GetGameTime() - _enemy_last_spotted_time_single[client] > 5) {
 			MakePlan(client, true);
 		}
-		else {
-			PrintToServer("Not yet: %f", GetGameTime() - _enemy_last_spotted_time_single[client]);
-		}
 	}
 	else {
 		if (EnemyHasGhost(client) || (!HasActivePlan(client) && !IsNearPlannedPosition(client))) {
-			ClearPlan(client);
 			MakePlan(client, true);
 		}
 	}

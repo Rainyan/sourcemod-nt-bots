@@ -11,7 +11,7 @@
 
 // Bot will randomly decide their tolerance for waypoint distance from this range.
 // This will slightly change their pathing, offering at least some variance in encounters.
-#define BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE_MIN 32
+#define BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE_MIN 48
 #define BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE_MAX 64
 
 #define BOT_TIMED_THINK_INTERVAL 10.0

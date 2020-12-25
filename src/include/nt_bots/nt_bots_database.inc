@@ -11,12 +11,16 @@ static char current_map_solutions_db_table_name[PLATFORM_MAX_PATH];
 void ConnectToDatabase()
 {
 	if (_db == null) {
-		decl String:error[256];
-		_db = SQLite_UseDatabase("sourcemod-local", error, sizeof(error));
-		if (_db == null) {
-			SetFailState("SQLite connection error: %s", error);
-		}
+		Database.Connect(GotDatabase, "storage-local");
 	}
+}
+
+public void GotDatabase(Database db, const char[] error, any data)
+{
+	if (db == null) {
+		SetFailState("Database connection error: %s", error);
+	}
+	_db = db;
 }
 
 static char cb_sql[256];
@@ -61,11 +65,16 @@ public void Cb_GetSolution(Database db, DBResultSet results, const char[] error,
 		float xyz[3];
 		bool got_any_result = false;
 		while (results.FetchRow()) {
-			xyz[0] = results.FetchFloat(7);
-			xyz[1] = results.FetchFloat(8);
-			xyz[2] = results.FetchFloat(9);
+			xyz[0] = results.FetchFloat(8);
+			xyz[1] = results.FetchFloat(9);
+			xyz[2] = results.FetchFloat(10);
 			PlanMove(bot_client, xyz);
 			got_any_result = true;
+			
+			// In case we got multiple sets of the same path for whatever reason
+			if (VectorsEqual(pos_to, xyz)) {
+				break;
+			}
 		}
 		
 		if (got_any_result) {
@@ -88,17 +97,18 @@ to_area_x = %.1f AND to_area_y = %.1f AND to_area_z = %.1f;";
 		//PrintToServer("No result; requesting");
 		
 		// Sqlite db has constraint for duplicate rows, so we can just (re) insert
-		new const String:insert_schema[] = "INSERT INTO %s (from_area_x, from_area_y, from_area_z, \
-to_area_x, to_area_y, to_area_z) VALUES (%.1f, %.1f, %.1f, %.1f, %.1f, %.1f);";
+		new const String:insert_schema[] = "INSERT INTO %s (epoch, from_area_x, from_area_y, from_area_z, \
+to_area_x, to_area_y, to_area_z) VALUES (%d, %.1f, %.1f, %.1f, %.1f, %.1f, %.1f);";
 		
 		Format(cb_sql, sizeof(cb_sql), insert_schema,
 			current_map_jobs_db_table_name,
+			GetTime(),
 			pos_from[0], pos_from[1], pos_from[2],
 			pos_to[0], pos_to[1], pos_to[2]);
 		
 		_db.Query(Cb_FireAndForget, cb_sql);
 		
-		CreateTimer(0.5, Timer_DbTryAgain, data, TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(1.0, Timer_DbTryAgain, data, TIMER_FLAG_NO_MAPCHANGE);
 		return;
 	}
 	
@@ -126,7 +136,7 @@ public Action Timer_DbTryAgain(Handle timer, DataPack data)
 		
 		new const String:select_schema[] = "SELECT * FROM %s WHERE from_area_x = %.1f AND \
 	from_area_y = %.1f AND from_area_z = %.1f AND to_area_x = %.1f AND to_area_y = %.1f AND \
-	to_area_z = %.1f;";
+	to_area_z = %.1f ORDER BY epoch DESC;";
 		Format(sql, sizeof(sql), select_schema, current_map_solutions_db_table_name,
 			pos_from[0], pos_from[1], pos_from[2],
 			pos_to[0], pos_to[1], pos_to[2]);

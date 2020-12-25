@@ -120,11 +120,12 @@ public void OnMapStart()
 	}
 	
 	for (int client = 1; client <= MaxClients; ++client) {
-		pre_health[client] = 100;
 		if (IsClientInGame(client) && IsBotClient(client)) {
 			BotSetup(client);
 		}
 	}
+	
+	RoundStartActions();
 }
 
 public void OnMapEnd()
@@ -137,6 +138,8 @@ public void OnMapEnd()
 
 void BotSetup(int client)
 {
+	ClearPlan(client);
+	
 	if (!SDKHookEx(client, thinkHookType, ThinkHook)) {
 		SetFailState("ThinkHook hook unsuccessful");
 	}
@@ -175,6 +178,12 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse,
 		if (bot_can_think[client]) {
 			bool is_stuck = CheckIfStuck(client);
 			bool has_active_plan = HasActivePlan(client);
+			
+			//PrintToServer("%d THINKING (is_stuck: %d, has_active_plan: %d)",
+			//	client,
+			//	is_stuck,
+			//	has_active_plan
+			//	);
 			
 			float next_angles[3];
 			if (has_active_plan) {
@@ -217,22 +226,33 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse,
 
 public void OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
+	RoundStartActions();
+}
+
+void RoundStartActions()
+{
 	round_start_time = GetGameTime();
+	
+	for (int client = 1; client <= MaxClients; ++client) {
+		_enemy_last_spotted_time_single[client] = 0.0;
+		pre_health[client] = 100;
+		bot_can_think[client] = false;
+		bot_last_took_dmg_from[client] = 0;
+		
+		for (int other_client = 1; other_client <= MaxClients; ++other_client) {
+			_enemy_positions[client][other_client] = vec3_origin;
+			_enemy_last_spotted_time[client][other_client] = 0.0;
+		}
+	}
+	
+	SetRandomSeed(GetGameTickCount());
+	g_cBotClass.SetInt(GetRandomInt(CLASS_RECON, CLASS_SUPPORT), true, false);
 	
 	if (g_hGenericTimer != null) {
 		delete g_hGenericTimer;
 		g_hGenericTimer = null;
 	}
 	g_hGenericTimer = CreateTimer(BOT_TIMED_THINK_INTERVAL, Timer_Generic, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
-	
-	SetRandomSeed(GetGameTickCount());
-	g_cBotClass.SetInt(GetRandomInt(CLASS_RECON, CLASS_SUPPORT), true, false);
-	
-	for (int client = 1; client <= MaxClients; ++client) {
-		for (int other_client = 1; other_client <= MaxClients; ++other_client) {
-			_enemy_positions[client][other_client] = vec3_origin;
-		}
-	}
 }
 
 public void OnPlayerSpawn(Event event, const char[] name, bool dontBroadcast)

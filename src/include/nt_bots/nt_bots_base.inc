@@ -186,14 +186,21 @@ stock float fclamp(const float value, const float min, const float max)
 
 void MakePlan(int client, bool hunt = false)
 {
-	//PrintToServer("MakePlan: %d", client);
-	
 	if (IsGameModeKillConfirmed()) {
 		hunt = true;
 	}
 	
+	float client_pos[3];
+	GetClientAbsOrigin(client, client_pos);
+	
 	float start_pos[3];
-	GetClientAbsOrigin(client, start_pos);
+	// If we had an active plan, smoothly transition to the next plan instead of backtracking.
+	if (!GetPlannedPosition(client, start_pos, 2) ||
+		// But if the next waypoint is really far, just consider current position as the first waypoint.
+		(GetVectorDistance(client_pos, start_pos) > BOT_CLOSE_ENOUGH_TO_TARGET_DISTANCE_MAX * 2))
+	{
+		start_pos = client_pos;
+	}
 	
 	float the_target_pos[3];
 	
@@ -218,6 +225,7 @@ void MakePlan(int client, bool hunt = false)
 		if (!GetNearestSpottedEnemy(client, the_target_pos)) {
 			if (!GetGhostPos(the_target_pos)) {
 				// No ghost found, and no enemies found. Do nothing.
+				PrintToServer("NO ENEMY FOUND");
 				return;
 			}
 		}

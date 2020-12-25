@@ -327,7 +327,7 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 						
 						if (g_cDrawDebugBeams.BoolValue) {
 							float ray_pos[3];
-							TR_TraceRay(eye_pos, angles, MASK_OPAQUE, RayType_Infinite);
+							TR_TraceRay(eye_pos, target_dir, MASK_OPAQUE, RayType_Infinite);
 							TR_GetEndPosition(ray_pos);
 							
 							TE_SetupBeamPoints(eye_pos, ray_pos, rayIndex, rayIndex,
@@ -435,22 +435,22 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 		}
 	}
 	
-	if (is_stuck) {
-		int num_cycles_stuck = GetNumCyclesStuck(client);
-		
-		if (num_cycles_stuck > server_tick_rate) {
-			static float rotate = 0.0;
-			//SetRandomSeed(GetGameTickCount() + num_cycles_stuck);
-			rotate -= 0.001 * num_cycles_stuck;
-			if (rotate >= 360) {
-				rotate -= 360.0;
-			}
-			else if (rotate < 0) {
-				rotate += 360.0;
-			}
-			angles[1] += rotate;
-		}
-	}
+	//if (is_stuck) {
+	//	int num_cycles_stuck = GetNumCyclesStuck(client);
+	//	
+	//	if (num_cycles_stuck > server_tick_rate) {
+	//		static float rotate = 0.0;
+	//		//SetRandomSeed(GetGameTickCount() + num_cycles_stuck);
+	//		rotate -= 0.001 * num_cycles_stuck;
+	//		if (rotate >= 360) {
+	//			rotate -= 360.0;
+	//		}
+	//		else if (rotate < 0) {
+	//			rotate += 360.0;
+	//		}
+	//		angles[1] += rotate;
+	//	}
+	//}
 	
 	if (!(buttons & IN_ATTACK) && GetPlayerClass(client) != CLASS_SUPPORT) {
 		buttons |= (IN_RUN | IN_SPRINT);
@@ -568,6 +568,9 @@ bool GetPlannedPosition(int client, float[3] out_pos, int offset = 0)
 		PrintToServer("!!! Failed to get ahead pos");
 		return false;
 	}
+	else if (index > s_movementPlan_WriteHead[client]) {
+		return false;
+	}
 	
 	out_pos = s_movementPlan[client][index];
 	
@@ -593,7 +596,7 @@ void ContinuePlan(int client)
 	
 	if (++s_movementPlan_Head[client] >= MAX_AREA_MOVES_PLANNED_FOR_FUTURE) {
 		ClearPlan(client);
-		SetFailState("ContinuePlan: PLAN STACK OVERFLOWED");
+		ThrowError("ContinuePlan: PLAN STACK OVERFLOWED");
 	}
 }
 
@@ -603,7 +606,7 @@ bool PlanMove(int client, const float[3] planned_pos)
 	
 	if (s_movementPlan_WriteHead[client] >= MAX_AREA_MOVES_PLANNED_FOR_FUTURE) {
 		ClearPlan(client);
-		SetFailState("PlanMove: PLAN STACK OVERFLOWED (%d)", s_movementPlan_WriteHead[client]);
+		ThrowError("PlanMove: PLAN STACK OVERFLOWED (%d)", s_movementPlan_WriteHead[client]);
 		return false;
 	}
 	

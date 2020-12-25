@@ -225,7 +225,6 @@ void MakePlan(int client, bool hunt = false)
 		if (!GetNearestSpottedEnemy(client, the_target_pos)) {
 			if (!GetGhostPos(the_target_pos)) {
 				// No ghost found, and no enemies found. Do nothing.
-				PrintToServer("NO ENEMY FOUND");
 				return;
 			}
 		}

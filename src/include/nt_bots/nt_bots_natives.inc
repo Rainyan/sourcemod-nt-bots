@@ -78,6 +78,11 @@ public Action Cmd_BotsTie(int client, int argc)
 		return Plugin_Handled;
 	}
 	
+	if (!AreOnlyBotsAlive()) {
+		ReplyToCommand(client, "%s Cannot use this command right now. Need to have only bot players alive, and human players in at least one team.", BOTS_MSG_PREFIX);
+		return Plugin_Handled;
+	}
+	
 	int num_dead_playing_humans, num_alive_playing_bots;
 	
 	for (int iter_client = 1; iter_client <= MaxClients; ++iter_client) {
@@ -94,16 +99,8 @@ public Action Cmd_BotsTie(int client, int argc)
 		}
 	}
 	
-	if (num_alive_playing_bots == 0) {
-		ReplyToCommand(client, "%s No living bots found to use this command on.", BOTS_MSG_PREFIX);
-	}
-	else if (num_dead_playing_humans > 0 && num_alive_playing_bots > 0) {
-		SoftSlayAllBots();
-		PrintToChatAll("%s Only bots remaining. Ending the round in a tie.", BOTS_MSG_PREFIX);
-	}
-	else {
-		ReplyToCommand(client, "%s Cannot use this command right now. Need to have only bot players alive, and human players in at least one team.", BOTS_MSG_PREFIX);
-	}
+	PrintToChatAll("%s Only bots remaining. Ending the round in a tie.", BOTS_MSG_PREFIX);
+	SoftSlayAllBots();
 	
 	return Plugin_Handled;
 }
@@ -188,11 +185,9 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse,
 #endif
 			
 			float next_angles[3];
-			if (has_active_plan) {
-				buttons |= DecideAngles(client, is_stuck, next_angles);
-				if (g_cMaxSpinSpeed.IntValue != 0) {
-					VectorLerp(prev_angles[client], next_angles, angles, g_cMaxSpinSpeed.FloatValue);
-				}
+			buttons |= DecideAngles(client, is_stuck, next_angles);
+			if (g_cMaxSpinSpeed.IntValue != 0) {
+				VectorLerp(prev_angles[client], next_angles, angles, g_cMaxSpinSpeed.FloatValue);
 			}
 			
 			prev_angles[client] = angles;

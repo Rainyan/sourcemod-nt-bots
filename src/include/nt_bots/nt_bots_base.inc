@@ -188,7 +188,7 @@ void MakePlan(int client, bool hunt = false)
 {
 	//PrintToServer("%d MakePlan", client);
 	
-	if (IsGameModeKillConfirmed()) {
+	if (IsGameModeKillConfirmed() || AreOnlyBotsAlive()) {
 		hunt = true;
 	}
 	
@@ -560,4 +560,25 @@ void SoftSlayAllBots()
 stock bool IsGameModeKillConfirmed()
 {
 	return g_cAlwaysKillConfirmedMode.BoolValue || ((g_cIsKillConfirmedMode == null) ? false : g_cIsKillConfirmedMode.BoolValue);
+}
+
+stock bool AreOnlyBotsAlive()
+{
+	int num_alive_playing_humans, num_alive_playing_bots;
+	
+	for (int iter_client = 1; iter_client <= MaxClients; ++iter_client) {
+		if (!IsClientInGame(iter_client)) {
+			continue;
+		}
+		if (!IsBotClient(iter_client)) {
+			if (GetClientTeam(iter_client) > TEAM_SPECTATOR && IsPlayerAlive(iter_client)) {
+				++num_alive_playing_humans;
+			}
+		}
+		else if (IsPlayerAlive(iter_client)) {
+			++num_alive_playing_bots;
+		}
+	}
+	
+	return num_alive_playing_humans == 0 && num_alive_playing_bots > 0;
 }

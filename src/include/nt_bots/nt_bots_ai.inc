@@ -14,8 +14,12 @@ enum StuckDir {
 void NoticeEnemy(int bot_client, int other_client, const float[3] enemy_pos)
 {
 	_enemy_positions[bot_client][other_client] = enemy_pos;
+	
 	_enemy_last_spotted_time_single[bot_client] = GetGameTime();
-	_enemy_last_spotted_time[bot_client][other_client] = _enemy_last_spotted_time_single[bot_client];
+	
+	if (_enemy_last_spotted_time[bot_client][other_client] == 0) {
+		_enemy_last_spotted_time[bot_client][other_client] = _enemy_last_spotted_time_single[bot_client];
+	}
 }
 
 public bool Cb_TraceEnumerator(int hit_entity, int other_client)
@@ -102,7 +106,9 @@ bool CheckIfStuck(int client)
 	
 	// Are we not moving enough?
 	if (result < 0.5) {
-		++_num_cycles_stuck[client];
+		if (_num_cycles_stuck[client] < 100) {
+			++_num_cycles_stuck[client];
+		}
 		return true;
 	}
 	
@@ -253,8 +259,6 @@ int DecideVelocity(int client, bool is_stuck, const float aim_ang[3], float vel[
 	return buttons;
 }
 
-static float last_spotted[NEO_MAX_PLAYERS + 1];
-
 static float previous_aim[NEO_MAX_PLAYERS + 1][3];
 static float perfect_angles[NEO_MAX_PLAYERS + 1][3];
 
@@ -271,22 +275,16 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 			continue;
 		}
 		
-		float time = _enemy_last_spotted_time[client][other_client];
-		
-		if (time == 0) {
+		if (_enemy_last_spotted_time[client][other_client] == 0) {
 			continue;
 		}
-		else if (time > time_now) {
+		else if (_enemy_last_spotted_time[client][other_client] > time_now || _enemy_last_spotted_time[client][other_client] < 0) {
 			_enemy_last_spotted_time[client][other_client] = 0.0;
 			continue;
 		}
-		else if (last_seen_client == -1 || time < last_spotted_time) {
+		else if (last_seen_client == -1 || _enemy_last_spotted_time[client][other_client] < last_spotted_time) {
 			last_seen_client = other_client;
-			last_spotted_time = time;
-		}
-		
-		if (last_spotted[other_client] != 0 && time - last_spotted[other_client] > g_cForgetEnemyTime.FloatValue) {
-			last_spotted[other_client] = 0.0;
+			last_spotted_time = _enemy_last_spotted_time[client][other_client];
 		}
 	}
 	
@@ -325,6 +323,7 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 						SubtractVectors(_enemy_positions[client][last_seen_client], eye_pos, target_dir);
 						NormalizeVector(target_dir, target_dir);
 						
+#if(0)
 						if (g_cDrawDebugBeams.BoolValue) {
 							float ray_pos[3];
 							TR_TraceRay(eye_pos, target_dir, MASK_OPAQUE, RayType_Infinite);
@@ -334,27 +333,23 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 								0, 1, 1.0, 2.0, 2.5, 5, 1.0, ray_color, 5);
 							TE_SendToAll();
 						}
+#endif
 	
-						if (last_seen_client != -1 && (time_now - last_spotted_time) < g_cSuppressFireTime.FloatValue) {
+						if ((time_now - _enemy_last_spotted_time_single[client]) < g_cSuppressFireTime.FloatValue) {
 							GetVectorAngles(target_dir, perfect_angles[client]);
 							
-							if (last_spotted[client] == 0) {
-								last_spotted[client] = last_spotted_time;
-							}
-							else {
-								if (time_now - last_spotted[client] >= g_cReactionTime.FloatValue) {
-									if (wep_slot == SLOT_SECONDARY || IsWeaponSemiautoFire(weapon)) {
-										if (!(prev_buttons[client] & IN_ATTACK)) {
-											buttons |= IN_ATTACK;
-										}
-									}
-									else if (current_ammo != 0) {
+							if ((time_now - last_spotted_time) >= g_cReactionTime.FloatValue) {
+								if (wep_slot == SLOT_SECONDARY || IsWeaponSemiautoFire(weapon)) {
+									if (!(prev_buttons[client] & IN_ATTACK)) {
 										buttons |= IN_ATTACK;
 									}
-									else if (wep_slot == SLOT_PRIMARY) { // Fallback for handling the Supa with its slug reloads. Should fix some time.
-										SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
-										FakeClientCommand(client, "slot2");
-									}
+								}
+								else if (current_ammo != 0) {
+									buttons |= IN_ATTACK;
+								}
+								else if (wep_slot == SLOT_PRIMARY) { // Fallback for handling the Supa with its slug reloads. Should fix some time.
+									SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
+									FakeClientCommand(client, "slot2");
 								}
 							}
 						}
@@ -422,8 +417,8 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 				// If enemy is cloaked, and we don't have a strong vision mode, add some delay to tracking aim.
 				if (IsCloaked(last_seen_client)) {
 					switch (GetPlayerClass(client)) {
-						case CLASS_RECON: scale *= 1.5;
-						case CLASS_SUPPORT: scale *= 2;
+						case CLASS_RECON: scale *= 1.75;
+						case CLASS_SUPPORT: scale *= 1.75;
 					}
 				}
 			}
@@ -435,22 +430,21 @@ int DecideAngles(int client, bool& is_stuck, float[3] angles)
 		}
 	}
 	
-	//if (is_stuck) {
-	//	int num_cycles_stuck = GetNumCyclesStuck(client);
-	//	
-	//	if (num_cycles_stuck > server_tick_rate) {
-	//		static float rotate = 0.0;
-	//		//SetRandomSeed(GetGameTickCount() + num_cycles_stuck);
-	//		rotate -= 0.001 * num_cycles_stuck;
-	//		if (rotate >= 360) {
-	//			rotate -= 360.0;
-	//		}
-	//		else if (rotate < 0) {
-	//			rotate += 360.0;
-	//		}
-	//		angles[1] += rotate;
-	//	}
-	//}
+	if (is_stuck) {
+		int num_cycles_stuck = GetNumCyclesStuck(client);
+		
+		if (num_cycles_stuck > server_tick_rate) {
+			static float rotate = 0.0;
+			rotate -= 0.001 * num_cycles_stuck;
+			if (rotate >= 360) {
+				rotate -= 360.0;
+			}
+			else if (rotate < 0) {
+				rotate += 360.0;
+			}
+			angles[1] += rotate;
+		}
+	}
 	
 	if (!(buttons & IN_ATTACK) && GetPlayerClass(client) != CLASS_SUPPORT) {
 		buttons |= (IN_RUN | IN_SPRINT);

@@ -24,6 +24,8 @@ public void OnPluginStart()
 	
 	g_cEnabled = CreateConVar("sm_nt_dynamic_bot_spawner_enabled", "1", "Whether to automatically adjust amount of bots.", _, true, 0.0, true, 1.0);
 	g_cPlayerMinLimit = CreateConVar("sm_nt_dynamic_bot_spawner_player_min_limit", "6", "Try to keep this many players (bots or humans) on the server, at minimum.", _, true, 0.0, true, 32.0);
+	
+	AutoExecConfig();
 }
 
 public void OnMapStart()
